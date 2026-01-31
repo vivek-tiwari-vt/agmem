@@ -152,6 +152,17 @@ def load_agmem_config(repo_root: Optional[Path] = None) -> Dict[str, Any]:
     return config
 
 
+def _get_cloud_section(config: Optional[Dict[str, Any]], section: str) -> Optional[Dict[str, Any]]:
+    """Return cloud.section dict if present and dict, else None."""
+    if not config:
+        return None
+    cloud = config.get(CONFIG_CLOUD, {})
+    if not isinstance(cloud, dict):
+        return None
+    val = cloud.get(section)
+    return val if isinstance(val, dict) else None
+
+
 def get_s3_options_from_config(config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Build S3 constructor kwargs from config. Resolves credentials from env only.
@@ -159,11 +170,9 @@ def get_s3_options_from_config(config: Optional[Dict[str, Any]]) -> Dict[str, An
     Returns dict with keys: region, endpoint_url, access_key, secret_key (and
     optionally lock_table). access_key/secret_key are set only from os.getenv(...).
     """
-    out = {}
-    if not config:
-        return out
-    s3 = config.get(CONFIG_CLOUD, {}).get(CONFIG_CLOUD_S3)
-    if not isinstance(s3, dict):
+    out: Dict[str, Any] = {}
+    s3 = _get_cloud_section(config, CONFIG_CLOUD_S3)
+    if not s3:
         return out
     if s3.get("region"):
         out["region"] = s3["region"]
@@ -191,11 +200,9 @@ def get_gcs_options_from_config(
     from JSON string in env). Caller (GCS adapter) uses credentials_path or
     credentials_info; never raw secret values in config.
     """
-    out = {}
-    if not config:
-        return out
-    gcs = config.get(CONFIG_CLOUD, {}).get(CONFIG_CLOUD_GCS)
-    if not isinstance(gcs, dict):
+    out: Dict[str, Any] = {}
+    gcs = _get_cloud_section(config, CONFIG_CLOUD_GCS)
+    if not gcs:
         return out
     if gcs.get("project"):
         out["project"] = gcs["project"]
@@ -211,26 +218,28 @@ def get_gcs_options_from_config(
     return out
 
 
+def _get_pii_section(config: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Return pii section dict if present and dict, else None."""
+    if not config:
+        return None
+    pii = config.get(CONFIG_PII)
+    return pii if isinstance(pii, dict) else None
+
+
 def pii_enabled(config: Optional[Dict[str, Any]]) -> bool:
     """Return True if PII scanning is enabled (default True when key missing)."""
-    if not config:
-        return True
-    pii = config.get(CONFIG_PII)
-    if not isinstance(pii, dict):
-        return True
-    if "enabled" not in pii:
+    pii = _get_pii_section(config)
+    if not pii or "enabled" not in pii:
         return True
     return bool(pii["enabled"])
 
 
 def pii_allowlist(config: Optional[Dict[str, Any]]) -> List[str]:
     """Return list of path globs to skip for PII scanning."""
-    if not config:
-        return []
-    pii = config.get(CONFIG_PII)
-    if not isinstance(pii, dict):
+    pii = _get_pii_section(config)
+    if not pii:
         return []
     allow = pii.get("allowlist")
-    if isinstance(allow, list):
-        return [str(x) for x in allow]
-    return []
+    if not isinstance(allow, list):
+        return []
+    return [str(x) for x in allow]

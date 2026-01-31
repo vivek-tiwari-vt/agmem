@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Callable, Optional
 from pathlib import Path
 
+PII_SEVERITY_HIGH = "high"
+
 
 @dataclass
 class HookResult:
@@ -52,6 +54,26 @@ def _pii_staged_files_to_scan(repo, staged_files: Dict[str, Any]) -> Dict[str, A
     }
 
 
+def _run_pii_hook(repo, staged_files: Dict[str, Any], result: HookResult) -> None:
+    """Run PII scanner on staged files; high severity → error, else → warning."""
+    try:
+        from .pii_scanner import PIIScanner
+        to_scan = _pii_staged_files_to_scan(repo, staged_files)
+        pii_result = PIIScanner.scan_staged_files(repo, to_scan)
+        if not pii_result.has_issues:
+            return
+        for issue in pii_result.issues:
+            msg = f"PII detected in {issue.filepath}: {issue.description}"
+            if issue.severity == PII_SEVERITY_HIGH:
+                result.add_error(msg)
+            else:
+                result.add_warning(msg)
+    except ImportError:
+        pass
+    except Exception as e:
+        result.add_warning(f"PII scanner failed: {e}")
+
+
 def run_pre_commit_hooks(repo, staged_files: Dict[str, Any]) -> HookResult:
     """
     Run all pre-commit hooks on staged files.
@@ -64,22 +86,7 @@ def run_pre_commit_hooks(repo, staged_files: Dict[str, Any]) -> HookResult:
         HookResult with success status and any errors/warnings
     """
     result = HookResult(success=True)
-    
-    # PII scanner: skip if pii.enabled is false (config-driven)
-    try:
-        from .pii_scanner import PIIScanner
-        to_scan = _pii_staged_files_to_scan(repo, staged_files)
-        pii_result = PIIScanner.scan_staged_files(repo, to_scan)
-        if pii_result.has_issues:
-            for issue in pii_result.issues:
-                result.add_error(f"PII detected in {issue.filepath}: {issue.description}")
-    except ImportError:
-        # config_loader or PII scanner not available, skip
-        pass
-    except Exception as e:
-        result.add_warning(f"PII scanner failed: {e}")
-    
-    # Run file type validation hook
+    _run_pii_hook(repo, staged_files, result)
     file_type_result = validate_file_types(repo, staged_files)
     if not file_type_result.success:
         for error in file_type_result.errors:

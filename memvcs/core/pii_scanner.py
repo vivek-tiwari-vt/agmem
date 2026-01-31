@@ -5,9 +5,12 @@ Scans staged files for sensitive information before commit.
 """
 
 import re
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import List, Dict, Any, Optional
+
+# IPs to ignore (localhost / internal); not reported as PII
+IP_FALSE_POSITIVES = frozenset(['127.0.0.1', '0.0.0.0', '192.168.0.1', '10.0.0.1'])
 
 
 @dataclass
@@ -220,10 +223,8 @@ class PIIScanner:
         if line.strip().startswith('#') and 'example' in lower_line:
             return True
         
-        # IP address false positives
         if pii_type == 'ip_address':
-            # Skip localhost and common internal IPs
-            if matched_text in ['127.0.0.1', '0.0.0.0', '192.168.0.1', '10.0.0.1']:
+            if matched_text in IP_FALSE_POSITIVES:
                 return True
             # Skip version numbers that look like IPs
             if 'version' in lower_line or 'v.' in lower_line:

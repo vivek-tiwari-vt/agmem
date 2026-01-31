@@ -7,6 +7,7 @@ Uses a temporary directory unless --use-current is passed (then uses ./current).
 """
 
 import argparse
+import os
 import subprocess
 import sys
 import tempfile
@@ -16,7 +17,9 @@ from pathlib import Path
 def run_agmem(cwd: Path, *args: str) -> tuple[int, str]:
     """Run agmem CLI; return (exit_code, combined stdout+stderr)."""
     cmd = [sys.executable, "-m", "memvcs.cli"] + list(args)
-    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=30)
+    project_root = Path(__file__).resolve().parent.parent
+    env = {**os.environ, "PYTHONPATH": str(project_root)}
+    r = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=30)
     out = (r.stdout or "") + (r.stderr or "")
     return r.returncode, out.strip()
 
@@ -64,12 +67,15 @@ def main() -> int:
         (current / "semantic").mkdir(parents=True, exist_ok=True)
         (current / "procedural").mkdir(parents=True, exist_ok=True)
         (current / "episodic" / "session1.md").write_text(
+            "---\nschema_version: \"1.0\"\nmemory_type: episodic\n---\n\n"
             "## Session 1\n\nReferences: [[user-preferences]] and [[coding-workflow]].\n"
         )
         (current / "semantic" / "user-preferences.md").write_text(
+            "---\nschema_version: \"1.0\"\nlast_updated: \"2025-01-31T00:00:00Z\"\n---\n\n"
             "## User Preferences\n\nSee [[session1]] for context.\n"
         )
         (current / "procedural" / "coding-workflow.md").write_text(
+            "---\nschema_version: \"1.0\"\nlast_updated: \"2025-01-31T00:00:00Z\"\n---\n\n"
             "## Workflow\n\nRelated: [[user-preferences]].\n"
         )
         if not step("add", "add", "."):
@@ -94,7 +100,9 @@ def main() -> int:
     step("blame", "blame", "semantic/user-preferences.md", optional_ok=True)
 
     # --- Stash (optional) ---
-    (cwd / "current" / "episodic" / "wip.md").write_text("WIP content")
+    (cwd / "current" / "episodic" / "wip.md").write_text(
+        "---\nschema_version: \"1.0\"\nmemory_type: episodic\n---\n\nWIP content"
+    )
     step("stash", "stash", "push", "-m", "test stash", optional_ok=True)
     step("stash list", "stash", "list", optional_ok=True)
     step("stash pop", "stash", "pop", optional_ok=True)
