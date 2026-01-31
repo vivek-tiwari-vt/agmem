@@ -12,6 +12,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from .constants import MEMORY_TYPES
+from .config_loader import load_agmem_config
 from .objects import ObjectStore, Blob, Tree, TreeEntry, Commit
 from .staging import StagingArea
 from .refs import RefsManager
@@ -127,6 +128,10 @@ class Repository:
         name = author.get('name', 'Agent')
         email = author.get('email', 'agent@example.com')
         return f"{name} <{email}>"
+
+    def get_agmem_config(self) -> Dict[str, Any]:
+        """Get merged agmem config (user + repo). Use for cloud and PII settings."""
+        return load_agmem_config(self.root)
     
     def get_head_commit(self) -> Optional[Commit]:
         """Get the current HEAD commit object."""

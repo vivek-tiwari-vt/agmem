@@ -4,6 +4,8 @@ Storage adapters for agmem.
 Provides abstraction layer for different storage backends.
 """
 
+from typing import Optional
+
 from .base import StorageAdapter, StorageError, LockError
 from .local import LocalStorageAdapter
 
@@ -28,12 +30,14 @@ except ImportError:
     pass
 
 
-def get_adapter(url: str) -> StorageAdapter:
+def get_adapter(url: str, config: Optional[dict] = None) -> StorageAdapter:
     """
     Get the appropriate storage adapter for a URL.
     
     Args:
         url: Storage URL (file://, s3://, gs://)
+        config: Optional agmem config dict (from load_agmem_config). Used for
+            S3/GCS credentials and options; credentials resolved from env only.
         
     Returns:
         Appropriate StorageAdapter instance
@@ -48,7 +52,7 @@ def get_adapter(url: str) -> StorageAdapter:
     elif url.startswith('s3://'):
         try:
             from .s3 import S3StorageAdapter
-            return S3StorageAdapter.from_url(url)
+            return S3StorageAdapter.from_url(url, config=config)
         except ImportError:
             raise ImportError(
                 "S3 storage requires boto3. Install with: pip install agmem[cloud]"
@@ -57,7 +61,7 @@ def get_adapter(url: str) -> StorageAdapter:
     elif url.startswith('gs://'):
         try:
             from .gcs import GCSStorageAdapter
-            return GCSStorageAdapter.from_url(url)
+            return GCSStorageAdapter.from_url(url, config=config)
         except ImportError:
             raise ImportError(
                 "GCS storage requires google-cloud-storage. Install with: pip install agmem[cloud]"

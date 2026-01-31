@@ -103,9 +103,22 @@ agmem commit -m "Experimenting with new workflow"
 # Switch back and merge
 agmem checkout main
 agmem merge experiment
+
+# See who changed each line of a memory file (like git blame)
+agmem blame current/semantic/user-preferences.md
+
+# Stash work in progress, then restore
+agmem stash push -m "WIP"
+agmem stash list
+agmem stash pop
+
+# View HEAD history (reflog)
+agmem reflog
 ```
 
 ## Commands
+
+All commands are listed below. Highlights: **`agmem blame <file>`** (who changed each line), **`agmem daemon`** (watch + optional auto-commit), **`agmem garden`** (episode archival & consolidation), **`agmem fsck`** (integrity check). See [Inspection & maintenance](#inspection--maintenance) for blame, daemon, and garden details.
 
 ### Core (Git-like)
 
@@ -127,8 +140,8 @@ agmem merge experiment
 | `agmem tree [ref]` | Directory tree of `current/` |
 | `agmem stash` | push / pop / list |
 | `agmem clean -f` | Remove untracked files |
-| `agmem blame <file>` | Per-line blame |
-| `agmem reflog` | HEAD change history |
+| `agmem blame <file>` | **Who changed each line** — commit hash, author, line number, content (like `git blame`) |
+| `agmem reflog` | HEAD change history (branch/checkout/commit) |
 
 ### Remote & integrity
 
@@ -149,8 +162,8 @@ agmem merge experiment
 | `agmem graph` | — | Knowledge graph from wikilinks/tags; `--no-similarity` skips vector |
 | `agmem graph --serve` | `agmem[web]` | Serve graph UI (same as `agmem serve`) |
 | `agmem serve` | `agmem[web]` | Web UI for history and diffs |
-| `agmem daemon` | `agmem[daemon]` | Watch `current/`, optional auto-commit |
-| `agmem garden` | — | Episode archival, consolidation (paths under `current/`) |
+| `agmem daemon` | `agmem[daemon]` | **Watch `current/`** — optional auto-commit after debounce; `daemon run` / `status` / `start` / `stop` |
+| `agmem garden` | — | **Episode archival & consolidation** — archive old episodic files, merge semantic facts; `--dry-run` supported |
 | `agmem mcp` | `agmem[mcp]` | MCP server for Cursor/Claude |
 
 ### Refs and optional extras
@@ -161,6 +174,56 @@ agmem merge experiment
 - **Web:** `agmem serve` and `agmem graph --serve` require `pip install agmem[web]`.
 - **Daemon:** `agmem daemon` requires `pip install agmem[daemon]`.
 - **MCP:** `agmem mcp` requires `pip install agmem[mcp]`.
+
+---
+
+## Inspection & maintenance
+
+### Blame — who changed each line
+
+See which commit and author last modified each line of a memory file (like `git blame`):
+
+```bash
+agmem blame current/semantic/user-preferences.md
+agmem blame episodic/session1.md
+```
+
+Output: commit hash (short), author, line number, and line content. Use this to trace where a fact or session line came from, or for audits.
+
+### Daemon — watch and auto-commit (optional)
+
+Run a background process that watches `current/` and can auto-commit when files change. Requires the `daemon` extra (watchdog).
+
+```bash
+pip install agmem[daemon]
+agmem daemon run          # Watch current/, optional auto-commit after debounce
+agmem daemon status       # Show if daemon is running
+agmem daemon start        # Start in background (uses .mem/daemon.pid by default)
+agmem daemon stop         # Stop the daemon
+```
+
+Use when you want memory changes to be committed automatically after a short idle period, or to keep a live view of the repo.
+
+### Garden — episode archival & consolidation (optional)
+
+Archive old episodic files and consolidate semantic memory. All paths stay under `current/` (path-validated).
+
+```bash
+agmem garden              # Run archival and consolidation (see config)
+agmem garden --dry-run    # Show what would be archived/consolidated without writing
+```
+
+Configure in `.mem/config.json` (e.g. `archive_dir`, consolidation thresholds). Use to keep `current/episodic/` manageable and to merge related semantic facts.
+
+### Integrity check
+
+```bash
+agmem fsck
+```
+
+Verifies objects, refs, and (if installed) the vector store. Run after cloning or if something looks wrong.
+
+---
 
 ## Memory Types
 
@@ -287,6 +350,8 @@ agmem stores agent memory exactly like Git stores code:
 
 ## Configuration
 
+### Repository config (`.mem/config.json`)
+
 Repository configuration is stored in `.mem/config.json`:
 
 ```json
@@ -308,6 +373,18 @@ Repository configuration is stored in `.mem/config.json`:
   }
 }
 ```
+
+### agmem config (cloud and PII)
+
+Optional user/repo config for S3/GCS and PII hooks:
+
+- **User-level**: `~/.config/agmem/config.yaml` (or `$XDG_CONFIG_HOME/agmem/config.yaml`)
+- **Repo-level**: `<repo>/.agmemrc` or `<repo>/.mem/config.yaml` (YAML)
+
+Repo overrides user. **Never put secrets in config files.** Credentials are supplied via environment variables (or standard AWS/GCP mechanisms). Config may reference env var *names* only (e.g. `access_key_var: AWS_ACCESS_KEY_ID`). See [docs/CONFIG.md](docs/CONFIG.md) for schema and examples.
+
+- **Cloud (S3/GCS)**: region, endpoint, env var names for credentials; GCS can use `credentials_path` (validated under repo/home) or `credentials_json_var` (env var containing JSON key).
+- **PII**: `pii.enabled` (default true) to enable/disable pre-commit PII scanning; `pii.allowlist` (path globs) to skip scanning certain files.
 
 ## Architecture
 
@@ -455,9 +532,10 @@ agmem graph --serve  # Serve knowledge graph UI (same extra)
 
 ### Compliance and Audit
 
-- Full history: `agmem log`, `agmem reflog`
-- Blame: `agmem blame current/semantic/user-preferences.md`
-- Visual audit: `agmem serve` for browser-based history and diff viewer
+- **Full history:** `agmem log`, `agmem reflog`
+- **Line-level attribution:** `agmem blame <file>` — see which commit and author last changed each line (e.g. `agmem blame current/semantic/user-preferences.md`)
+- **Visual audit:** `agmem serve` for browser-based history and diff viewer
+- **Integrity:** `agmem fsck` to verify objects and refs
 
 ## Ecosystem Plugin Patterns
 

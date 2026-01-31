@@ -2,11 +2,12 @@
 S3/MinIO storage adapter for agmem.
 
 Supports Amazon S3, MinIO, and any S3-compatible storage.
+Credentials are resolved from config via env var names only (never stored in config).
 """
 
 import time
 import uuid
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 try:
@@ -17,6 +18,23 @@ except ImportError:
     BOTO3_AVAILABLE = False
 
 from .base import StorageAdapter, StorageError, LockError, FileInfo
+
+
+def _apply_s3_config(kwargs: Dict[str, Any], config: Optional[Dict[str, Any]]) -> None:
+    """Merge S3 options from agmem config into kwargs; credentials from env only."""
+    if not config:
+        return
+    try:
+        from memvcs.core.config_loader import get_s3_options_from_config
+        opts = get_s3_options_from_config(config)
+        for key in ("region", "endpoint_url", "lock_table"):
+            if opts.get(key) is not None:
+                kwargs[key] = opts[key]
+        if opts.get("access_key") is not None and opts.get("secret_key") is not None:
+            kwargs["access_key"] = opts["access_key"]
+            kwargs["secret_key"] = opts["secret_key"]
+    except ImportError:
+        pass
 
 
 class S3StorageAdapter(StorageAdapter):
@@ -71,25 +89,27 @@ class S3StorageAdapter(StorageAdapter):
             self.dynamodb = None
     
     @classmethod
-    def from_url(cls, url: str) -> 'S3StorageAdapter':
+    def from_url(cls, url: str, config: Optional[Dict[str, Any]] = None) -> 'S3StorageAdapter':
         """
-        Create adapter from S3 URL.
+        Create adapter from S3 URL. Optional config supplies region, endpoint,
+        and env var names for credentials; credentials are resolved from env only.
         
         Args:
             url: S3 URL (s3://bucket/prefix)
+            config: Optional agmem config dict (cloud.s3); credentials from env vars
             
         Returns:
             S3StorageAdapter instance
         """
         if not url.startswith('s3://'):
             raise ValueError(f"Invalid S3 URL: {url}")
-        
         path = url[5:]  # Remove 's3://'
         parts = path.split('/', 1)
         bucket = parts[0]
         prefix = parts[1] if len(parts) > 1 else ""
-        
-        return cls(bucket=bucket, prefix=prefix)
+        kwargs: Dict[str, Any] = {"bucket": bucket, "prefix": prefix}
+        _apply_s3_config(kwargs, config)
+        return cls(**kwargs)
     
     def _key(self, path: str) -> str:
         """Convert relative path to S3 key."""

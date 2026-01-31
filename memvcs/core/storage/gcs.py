@@ -1,10 +1,13 @@
 """
 Google Cloud Storage adapter for agmem.
+
+Credentials from config: credentials_path (validated) or credentials_info (dict
+from env var containing JSON). Never store secret values in config.
 """
 
 import time
 import uuid
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 try:
@@ -17,6 +20,20 @@ except ImportError:
 from .base import StorageAdapter, StorageError, LockError, FileInfo
 
 
+def _apply_gcs_config(kwargs: Dict[str, Any], config: Optional[Dict[str, Any]]) -> None:
+    """Merge GCS options from agmem config into kwargs; credentials from env or validated path."""
+    if not config:
+        return
+    try:
+        from memvcs.core.config_loader import get_gcs_options_from_config
+        opts = get_gcs_options_from_config(config)
+        for key in ("project", "credentials_path", "credentials_info"):
+            if opts.get(key) is not None:
+                kwargs[key] = opts[key]
+    except ImportError:
+        pass
+
+
 class GCSStorageAdapter(StorageAdapter):
     """Storage adapter for Google Cloud Storage."""
     
@@ -25,7 +42,8 @@ class GCSStorageAdapter(StorageAdapter):
         bucket: str,
         prefix: str = "",
         project: Optional[str] = None,
-        credentials_path: Optional[str] = None
+        credentials_path: Optional[str] = None,
+        credentials_info: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize GCS storage adapter.
@@ -35,6 +53,7 @@ class GCSStorageAdapter(StorageAdapter):
             prefix: Key prefix for all operations
             project: GCP project ID
             credentials_path: Path to service account JSON file
+            credentials_info: Service account info dict (e.g. from env JSON)
         """
         if not GCS_AVAILABLE:
             raise ImportError(
@@ -46,8 +65,10 @@ class GCSStorageAdapter(StorageAdapter):
         self.prefix = prefix.strip('/')
         self._lock_id = str(uuid.uuid4())
         
-        # Build client
-        if credentials_path:
+        # Build client: info dict > path > project > default
+        if credentials_info:
+            self.client = storage.Client.from_service_account_info(credentials_info)
+        elif credentials_path:
             self.client = storage.Client.from_service_account_json(credentials_path)
         elif project:
             self.client = storage.Client(project=project)
@@ -57,25 +78,27 @@ class GCSStorageAdapter(StorageAdapter):
         self.bucket = self.client.bucket(bucket)
     
     @classmethod
-    def from_url(cls, url: str) -> 'GCSStorageAdapter':
+    def from_url(cls, url: str, config: Optional[Dict[str, Any]] = None) -> 'GCSStorageAdapter':
         """
-        Create adapter from GCS URL.
+        Create adapter from GCS URL. Optional config supplies project,
+        credentials_path (validated), or credentials_info from env JSON.
         
         Args:
             url: GCS URL (gs://bucket/prefix)
+            config: Optional agmem config dict (cloud.gcs)
             
         Returns:
             GCSStorageAdapter instance
         """
         if not url.startswith('gs://'):
             raise ValueError(f"Invalid GCS URL: {url}")
-        
         path = url[5:]  # Remove 'gs://'
         parts = path.split('/', 1)
         bucket = parts[0]
         prefix = parts[1] if len(parts) > 1 else ""
-        
-        return cls(bucket=bucket, prefix=prefix)
+        kwargs: Dict[str, Any] = {"bucket": bucket, "prefix": prefix}
+        _apply_gcs_config(kwargs, config)
+        return cls(**kwargs)
     
     def _key(self, path: str) -> str:
         """Convert relative path to GCS key."""

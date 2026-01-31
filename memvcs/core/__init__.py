@@ -1,6 +1,7 @@
 """Core agmem modules for object storage and repository management."""
 
 from .constants import MEMORY_TYPES
+from .config_loader import load_agmem_config
 from .objects import Blob, Commit, ObjectStore, Tag, Tree
 from .repository import Repository
 from .staging import StagingArea
@@ -16,4 +17,5 @@ __all__ = [
     "StagingArea",
     "Tag",
     "Tree",
+    "load_agmem_config",
 ]
