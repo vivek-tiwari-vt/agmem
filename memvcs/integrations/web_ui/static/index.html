@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agmem - Memory History</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 1rem; background: #1a1a2e; color: #eee; }
+    h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+    nav { margin-bottom: 1rem; }
+    nav button { margin-right: 0.5rem; padding: 0.4rem 0.8rem; cursor: pointer; background: #16213e; border: 1px solid #0f3460; color: #eee; border-radius: 4px; }
+    nav button:hover { background: #0f3460; }
+    nav button.active { background: #e94560; border-color: #e94560; }
+    #content { background: #16213e; border-radius: 8px; padding: 1rem; min-height: 300px; }
+    .commit { padding: 0.6rem; margin: 0.2rem 0; background: #0f3460; border-radius: 4px; cursor: pointer; }
+    .commit:hover { background: #1a4a7a; }
+    .commit .hash { font-family: monospace; color: #e94560; font-size: 0.9rem; }
+    .commit .msg { margin-top: 0.2rem; }
+    .commit .meta { font-size: 0.8rem; color: #888; margin-top: 0.3rem; }
+    .tree-entry { padding: 0.3rem 0; font-family: monospace; }
+    .diff-file { margin: 1rem 0; border: 1px solid #0f3460; border-radius: 4px; overflow: hidden; }
+    .diff-file h4 { margin: 0; padding: 0.5rem; background: #0f3460; }
+    .diff-line { font-family: monospace; font-size: 0.85rem; padding: 0 0.5rem; }
+    .diff-line.add { background: #1b4332; color: #95d5b2; }
+    .diff-line.del { background: #541212; color: #f4a3a3; }
+    .hidden { display: none; }
+    select { padding: 0.4rem; background: #16213e; color: #eee; border: 1px solid #0f3460; border-radius: 4px; margin: 0 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>agmem Memory History</h1>
+  <nav>
+    <button class="active" data-view="log">Log</button>
+    <button data-view="tree">Tree</button>
+    <button data-view="diff">Diff</button>
+  </nav>
+  <div id="content">
+    <div id="log-view">Loading...</div>
+    <div id="tree-view" class="hidden">
+      <label>Commit: <select id="tree-commit"></select></label>
+      <pre id="tree-content"></pre>
+    </div>
+    <div id="diff-view" class="hidden">
+      <label>Base: <select id="diff-base"></select></label>
+      <label>Head: <select id="diff-head"></select></label>
+      <button id="diff-go">Show Diff</button>
+      <div id="diff-content"></div>
+    </div>
+  </div>
+
+  <script>
+    const api = path => fetch(path).then(r => r.json());
+
+    async function loadLog() {
+      const data = await api('/api/log');
+      const html = data.commits.map(c => `
+        <div class="commit" data-hash="${c.hash}">
+          <span class="hash">${c.short_hash}</span>
+          <div class="msg">${escapeHtml(c.message)}</div>
+          <div class="meta">${c.author} &middot; ${c.timestamp}</div>
+        </div>
+      `).join('');
+      document.getElementById('log-view').innerHTML = html || '<p>No commits yet.</p>';
+      document.querySelectorAll('.commit').forEach(el => {
+        el.onclick = () => selectCommit(el.dataset.hash);
+      });
+    }
+
+    async function loadTree(commitHash) {
+      try {
+        const data = await api(`/api/tree/${commitHash}`);
+        const lines = data.entries.map(e => `  ${e.path} (${e.type})`);
+        document.getElementById('tree-content').textContent = lines.join('\n') || '(empty)';
+      } catch (e) {
+        document.getElementById('tree-content').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    async function loadDiff(base, head) {
+      try {
+        const data = await api(`/api/diff?base=${base}&head=${head}`);
+        let html = `<p>${data.added} added, ${data.deleted} deleted, ${data.modified} modified</p>`;
+        data.files.forEach(f => {
+          html += `<div class="diff-file"><h4>${escapeHtml(f.path)} (${f.diff_type})</h4>`;
+          f.diff_lines.forEach(line => {
+            const cls = line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : '';
+            html += `<div class="diff-line ${cls}">${escapeHtml(line)}</div>`;
+          });
+          html += '</div>';
+        });
+        document.getElementById('diff-content').innerHTML = html || '<p>No changes.</p>';
+      } catch (e) {
+        document.getElementById('diff-content').innerHTML = '<p>Error: ' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function selectCommit(hash) {
+      window.selectedCommit = hash;
+      const opts = document.querySelectorAll('#tree-commit option, #diff-base option, #diff-head option');
+      opts.forEach(o => { o.selected = o.value === hash; });
+      loadTree(hash);
+    }
+
+    async function init() {
+      await loadLog();
+      const data = await api('/api/log');
+      const commits = data.commits;
+      const opt = (h, label) => `<option value="${h}">${label || h.slice(0,8)}</option>`;
+      document.getElementById('tree-commit').innerHTML = commits.map(c => opt(c.hash, c.short_hash + ' ' + c.message.slice(0,40))).join('');
+      document.getElementById('diff-base').innerHTML = commits.map(c => opt(c.hash)).join('');
+      document.getElementById('diff-head').innerHTML = commits.map(c => opt(c.hash)).join('');
+      if (commits.length) {
+        selectCommit(commits[0].hash);
+        document.getElementById('diff-head').value = commits[0].hash;
+        document.getElementById('diff-base').value = commits[1] ? commits[1].hash : commits[0].hash;
+      }
+      document.getElementById('tree-commit').onchange = () => loadTree(document.getElementById('tree-commit').value);
+      document.getElementById('diff-go').onclick = () => loadDiff(document.getElementById('diff-base').value, document.getElementById('diff-head').value);
+    }
+
+    document.querySelectorAll('nav button').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('#content > div').forEach((d, i) => {
+          d.classList.toggle('hidden', d.id !== btn.dataset.view + '-view');
+        });
+        if (btn.dataset.view === 'tree' && window.selectedCommit) loadTree(window.selectedCommit);
+      };
+    });
+
+    init();
+  </script>
+</body>
+</html>
