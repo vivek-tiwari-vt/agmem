@@ -50,7 +50,9 @@ def create_app(repo_path: Path) -> FastAPI:
         if not repo.is_valid_repo():
             raise HTTPException(status_code=400, detail="Not an agmem repository")
 
-        resolved = repo.resolve_ref(commit_hash) or (commit_hash if _valid_commit_hash(commit_hash) else None)
+        resolved = repo.resolve_ref(commit_hash) or (
+            commit_hash if _valid_commit_hash(commit_hash) else None
+        )
         if not resolved:
             raise HTTPException(status_code=400, detail="Invalid revision or hash")
         c = Commit.load(repo.object_store, resolved)
@@ -87,13 +89,15 @@ def create_app(repo_path: Path) -> FastAPI:
         tree_diff = engine.diff_commits(c1, c2)
         files = []
         for fd in tree_diff.files:
-            files.append({
-                "path": fd.path,
-                "diff_type": fd.diff_type.value,
-                "old_hash": fd.old_hash,
-                "new_hash": fd.new_hash,
-                "diff_lines": fd.diff_lines,
-            })
+            files.append(
+                {
+                    "path": fd.path,
+                    "diff_type": fd.diff_type.value,
+                    "old_hash": fd.old_hash,
+                    "new_hash": fd.new_hash,
+                    "diff_lines": fd.diff_lines,
+                }
+            )
         return {
             "base": base,
             "head": head,
@@ -138,37 +142,32 @@ def create_app(repo_path: Path) -> FastAPI:
         if include_similarity:
             try:
                 from memvcs.core.vector_store import VectorStore
-                vector_store = VectorStore(_repo_path / '.mem')
+
+                vector_store = VectorStore(_repo_path / ".mem")
             except ImportError:
                 pass
 
         builder = KnowledgeGraphBuilder(repo, vector_store)
         graph_data = builder.build_graph(
-            include_similarity=include_similarity,
-            similarity_threshold=threshold
+            include_similarity=include_similarity, similarity_threshold=threshold
         )
 
         # Return D3-compatible format
         return {
-            'nodes': [
+            "nodes": [
                 {
-                    'id': n.id,
-                    'name': n.label,
-                    'group': n.memory_type,
-                    'size': min(20, max(5, n.size // 100))
+                    "id": n.id,
+                    "name": n.label,
+                    "group": n.memory_type,
+                    "size": min(20, max(5, n.size // 100)),
                 }
                 for n in graph_data.nodes
             ],
-            'links': [
-                {
-                    'source': e.source,
-                    'target': e.target,
-                    'type': e.edge_type,
-                    'value': e.weight
-                }
+            "links": [
+                {"source": e.source, "target": e.target, "type": e.edge_type, "value": e.weight}
                 for e in graph_data.edges
             ],
-            'metadata': graph_data.metadata
+            "metadata": graph_data.metadata,
         }
 
     @app.get("/graph", response_class=HTMLResponse)
@@ -185,7 +184,7 @@ def create_app(repo_path: Path) -> FastAPI:
 
 
 # Embedded graph viewer template
-GRAPH_HTML_TEMPLATE = '''<!DOCTYPE html>
+GRAPH_HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
     <title>agmem Knowledge Graph</title>
@@ -349,4 +348,4 @@ GRAPH_HTML_TEMPLATE = '''<!DOCTYPE html>
     </script>
 </body>
 </html>
-'''
+"""

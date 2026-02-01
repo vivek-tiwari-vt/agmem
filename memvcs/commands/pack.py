@@ -23,35 +23,41 @@ class PackCommand:
     @staticmethod
     def add_arguments(parser: argparse.ArgumentParser):
         parser.add_argument(
-            "--context", "-c",
+            "--context",
+            "-c",
             default="",
             help="Current task description for recall",
         )
         parser.add_argument(
-            "--budget", "-b",
+            "--budget",
+            "-b",
             type=int,
             default=4000,
             help="Max tokens (default: 4000)",
         )
         parser.add_argument(
-            "--strategy", "-s",
+            "--strategy",
+            "-s",
             choices=["relevance", "recency", "importance", "balanced"],
             default="relevance",
             help="Packing strategy (default: relevance)",
         )
         parser.add_argument(
-            "--exclude", "-e",
+            "--exclude",
+            "-e",
             action="append",
             default=[],
             help="Paths to exclude; repeatable",
         )
         parser.add_argument(
-            "--model", "-m",
+            "--model",
+            "-m",
             default="gpt-4o-mini",
             help="Model for token counting (default: gpt-4o-mini)",
         )
         parser.add_argument(
-            "--format", "-f",
+            "--format",
+            "-f",
             choices=["text", "json"],
             default="text",
             help="Output format (default: text)",
@@ -66,6 +72,7 @@ class PackCommand:
         vector_store = None
         try:
             from ..core.vector_store import VectorStore
+
             vs = VectorStore(repo.mem_dir)
             vs._get_connection()  # ensure sqlite-vec is usable; may raise
             vector_store = vs
@@ -96,17 +103,26 @@ class PackCommand:
 
         if args.format == "json":
             import json
-            print(json.dumps({
-                "content": result.content,
-                "total_tokens": result.total_tokens,
-                "budget": result.budget,
-                "items_used": result.items_used,
-                "items_total": result.items_total,
-            }, indent=2))
+
+            print(
+                json.dumps(
+                    {
+                        "content": result.content,
+                        "total_tokens": result.total_tokens,
+                        "budget": result.budget,
+                        "items_used": result.items_used,
+                        "items_total": result.items_total,
+                    },
+                    indent=2,
+                )
+            )
         else:
             print(result.content)
-            print(f"\n# Pack stats: {result.total_tokens}/{result.budget} tokens, "
-                  f"{result.items_used}/{result.items_total} items", file=sys.stderr)
+            print(
+                f"\n# Pack stats: {result.total_tokens}/{result.budget} tokens, "
+                f"{result.items_used}/{result.items_total} items",
+                file=sys.stderr,
+            )
 
         if vector_store and hasattr(vector_store, "close"):
             vector_store.close()

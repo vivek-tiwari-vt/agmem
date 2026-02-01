@@ -8,6 +8,7 @@ from pathlib import Path
 
 class MemoryConflictError(Exception):
     """Exception raised when push fails due to conflicts."""
+
     pass
 
 
@@ -31,7 +32,8 @@ class PushCommand:
             help="Branch to push (default: current)",
         )
         parser.add_argument(
-            "--force", "-f",
+            "--force",
+            "-f",
             action="store_true",
             help="Force push (WARNING: may overwrite remote changes)",
         )
@@ -53,7 +55,7 @@ class PushCommand:
 
         remote = Remote(repo.root, args.remote)
         remote_url = remote.get_remote_url()
-        
+
         if not remote_url:
             print(f"Error: Remote '{args.remote}' has no URL.")
             print(f"Set with: agmem remote add {args.remote} <url>")

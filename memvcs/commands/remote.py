@@ -40,6 +40,7 @@ class RemoteCommand:
             print(f"Remote '{args.name}' set to {args.url}")
         elif args.remote_action == "show":
             import json
+
             config = json.loads((repo.root / ".mem" / "config.json").read_text())
             remotes = config.get("remotes", {})
             if remotes:

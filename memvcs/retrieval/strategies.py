@@ -242,6 +242,7 @@ class HybridStrategy(RetrievalStrategy):
         current_dir = self.repo.current_dir
         if current_dir.exists():
             import time
+
             head = self.repo.get_head_commit()
             commit_imp = head.metadata.get("importance", 0.5) if head else 0.5
 
@@ -285,7 +286,9 @@ class HybridStrategy(RetrievalStrategy):
                                 path=rel_path,
                                 content=content[:2000] + ("..." if len(content) > 2000 else ""),
                                 relevance_score=0,
-                                source={"indexed_at": datetime.fromtimestamp(mtime).isoformat() + "Z"},
+                                source={
+                                    "indexed_at": datetime.fromtimestamp(mtime).isoformat() + "Z"
+                                },
                                 importance=imp_score,
                             ),
                             "sim_score": 0.5,

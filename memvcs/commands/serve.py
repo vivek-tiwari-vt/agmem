@@ -16,7 +16,8 @@ class ServeCommand:
     @staticmethod
     def add_arguments(parser: argparse.ArgumentParser):
         parser.add_argument(
-            "--port", "-p",
+            "--port",
+            "-p",
             type=int,
             default=8765,
             help="Port to bind (default: 8765)",

@@ -11,13 +11,13 @@ from .merge import MergeCommand
 from .diff import DiffCommand
 
 __all__ = [
-    'InitCommand',
-    'AddCommand',
-    'CommitCommand',
-    'StatusCommand',
-    'LogCommand',
-    'BranchCommand',
-    'CheckoutCommand',
-    'MergeCommand',
-    'DiffCommand',
+    "InitCommand",
+    "AddCommand",
+    "CommitCommand",
+    "StatusCommand",
+    "LogCommand",
+    "BranchCommand",
+    "CheckoutCommand",
+    "MergeCommand",
+    "DiffCommand",
 ]

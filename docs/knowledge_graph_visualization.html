@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>agmem Knowledge Graph — Visual</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        #header {
+            padding: 12px 20px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+        }
+        h1 { margin: 0; font-size: 20px; }
+        #legend {
+            padding: 10px 20px;
+            background: #16213e;
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        #legend span { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        #legend .dot { width: 12px; height: 12px; border-radius: 50%; }
+        #graph { width: 100%; height: calc(100vh - 120px); }
+        .node { cursor: grab; }
+        .node:active { cursor: grabbing; }
+        .node text { font-size: 11px; fill: #fff; pointer-events: none; }
+        .link { stroke-opacity: 0.7; }
+        .link.reference { stroke: #e94560; stroke-width: 2; }
+        .link.same_topic { stroke: #533483; }
+        .link.similarity { stroke: #0f3460; }
+        #tooltip {
+            position: fixed;
+            background: #16213e;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid #0f3460;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 320px;
+            z-index: 1000;
+        }
+        #stats { font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>agmem Knowledge Graph — Visual</h1>
+    </div>
+    <div id="legend">
+        <span><span class="dot" style="background:#e94560"></span> episodic</span>
+        <span><span class="dot" style="background:#0f3460"></span> semantic</span>
+        <span><span class="dot" style="background:#533483"></span> procedural</span>
+        <span id="stats">—</span>
+    </div>
+    <div id="graph"></div>
+    <div id="tooltip"></div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        // Embedded graph data (from agmem graph --format d3 --output graph_export.json)
+        const graphData = {
+            "nodes": [
+                { "id": "episodic/wip.md", "name": "wip", "group": "episodic", "size": 5 },
+                { "id": "episodic/session1.md", "name": "session1", "group": "episodic", "size": 5 },
+                { "id": "semantic/user-preferences.md", "name": "user-preferences", "group": "semantic", "size": 5 },
+                { "id": "procedural/coding-workflow.md", "name": "coding-workflow", "group": "procedural", "size": 5 }
+            ],
+            "links": [
+                { "source": "episodic/session1.md", "target": "semantic/user-preferences.md", "type": "reference", "value": 1.0 },
+                { "source": "episodic/session1.md", "target": "procedural/coding-workflow.md", "type": "reference", "value": 1.0 },
+                { "source": "semantic/user-preferences.md", "target": "episodic/session1.md", "type": "reference", "value": 1.0 },
+                { "source": "semantic/user-preferences.md", "target": "procedural/coding-workflow.md", "type": "reference", "value": 1.0 },
+                { "source": "procedural/coding-workflow.md", "target": "semantic/user-preferences.md", "type": "reference", "value": 1.0 }
+            ]
+        };
+
+        const width = document.getElementById('graph').clientWidth;
+        const height = document.getElementById('graph').clientHeight;
+
+        const colorScale = d3.scaleOrdinal()
+            .domain(['episodic', 'semantic', 'procedural', 'checkpoints', 'session-summaries', 'unknown'])
+            .range(['#e94560', '#0f3460', '#533483', '#1a1a2e', '#16213e', '#444']);
+
+        document.getElementById('stats').textContent =
+            graphData.nodes.length + ' files, ' + graphData.links.length + ' connections';
+
+        const svg = d3.select('#graph')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        const g = svg.append('g');
+
+        svg.call(d3.zoom()
+            .extent([[0, 0], [width, height]])
+            .scaleExtent([0.2, 4])
+            .on('zoom', ({ transform }) => g.attr('transform', transform)));
+
+        const tooltip = d3.select('#tooltip');
+
+        const simulation = d3.forceSimulation(graphData.nodes)
+            .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(120))
+            .force('charge', d3.forceManyBody().strength(-280))
+            .force('center', d3.forceCenter(width / 2, height / 2));
+
+        const link = g.append('g')
+            .selectAll('line')
+            .data(graphData.links)
+            .join('line')
+            .attr('class', d => 'link ' + d.type)
+            .attr('stroke-width', d => Math.max(1, Math.sqrt(d.value) * 2));
+
+        const node = g.append('g')
+            .selectAll('g')
+            .data(graphData.nodes)
+            .join('g')
+            .attr('class', 'node')
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
+
+        node.append('circle')
+            .attr('r', d => Math.max(8, (d.size || 5) + 4))
+            .attr('fill', d => colorScale(d.group))
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1.5)
+            .on('mouseover', (event, d) => {
+                tooltip.style('opacity', 1)
+                    .html('<strong>' + d.name + '</strong><br>Type: ' + d.group + '<br>Path: ' + d.id)
+                    .style('left', (event.pageX + 14) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
+            .on('mouseout', () => tooltip.style('opacity', 0));
+
+        node.append('text')
+            .text(d => d.name)
+            .attr('dx', d => Math.max(8, (d.size || 5) + 6))
+            .attr('dy', 4)
+            .attr('fill', '#fff');
+
+        simulation.on('tick', () => {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+            node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
+        });
+
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+    </script>
+</body>
+</html>

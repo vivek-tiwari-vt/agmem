@@ -1,6 +1,6 @@
-# CI: lint + test on push/PR. Publish: build and push to PyPI on release.
-# PyPI: use Trusted Publishing (no token). Add this repo as a trusted publisher at:
-#   https://pypi.org/manage/project/agmem/settings/publishing/
+# CI: lint + test on push/PR. Publish: build and push to PyPI on tag push.
+# PyPI: add PYPI_API_TOKEN to repo Secrets (Settings > Secrets > Actions).
+# Create token at https://pypi.org/manage/account/token/ (scope: entire account or project agmem).
 
 name: CI and PyPI Publish
 
@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -33,7 +35,7 @@ jobs:
       - name: Black
         run: black --check .
       - name: Flake8
-        run: flake8 . --max-line-length=100 --extend-ignore=E203,W503
+        run: flake8 . --max-line-length=100 --extend-ignore=E203,W503 --exclude=venv,.venv,build,dist,.git,*.egg-info
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -44,6 +46,8 @@ jobs:
         python-version: ${{ fromJson(env.PYTHON_VERSION_MATRIX) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -59,9 +63,11 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     needs: [lint, test]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'release' && github.event.action == 'published')
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -80,9 +86,7 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: [build]
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      id-token: write
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'release' && github.event.action == 'published')
     steps:
       - name: Download dist
         uses: actions/download-artifact@v4
@@ -91,4 +95,8 @@ jobs:
           path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
 

@@ -75,7 +75,8 @@ class VectorStore:
     def _ensure_tables(self):
         """Create vector and metadata tables if they don't exist."""
         conn = self._get_connection()
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS memory_meta (
                 rowid INTEGER PRIMARY KEY,
                 path TEXT NOT NULL,
@@ -85,18 +86,21 @@ class VectorStore:
                 author TEXT,
                 indexed_at TEXT
             )
-        """)
+        """
+        )
         # Try to add new columns to existing tables (for upgrades)
-        for col in ['commit_hash TEXT', 'author TEXT', 'indexed_at TEXT']:
+        for col in ["commit_hash TEXT", "author TEXT", "indexed_at TEXT"]:
             try:
                 conn.execute(f"ALTER TABLE memory_meta ADD COLUMN {col}")
             except Exception:
                 pass  # Column already exists
         try:
-            conn.execute(f"""
+            conn.execute(
+                f"""
                 CREATE VIRTUAL TABLE IF NOT EXISTS vec_memory
                 USING vec0(embedding float[{EMBEDDING_DIM}])
-            """)
+            """
+            )
         except Exception as e:
             # vec0 might already exist with different schema
             logger.debug("vec_memory creation: %s", e)
@@ -114,11 +118,11 @@ class VectorStore:
         content: str,
         blob_hash: Optional[str] = None,
         commit_hash: Optional[str] = None,
-        author: Optional[str] = None
+        author: Optional[str] = None,
     ) -> None:
         """
         Index a memory file for semantic search.
-        
+
         Args:
             path: File path relative to current/
             content: File content to index
@@ -127,13 +131,13 @@ class VectorStore:
             author: Optional author string for provenance tracking
         """
         from datetime import datetime
-        
+
         self._ensure_tables()
         conn = self._get_connection()
 
         embedding = self._embed(content)
         emb_bytes = _serialize_f32(embedding)
-        indexed_at = datetime.utcnow().isoformat() + 'Z'
+        indexed_at = datetime.utcnow().isoformat() + "Z"
 
         with conn:
             conn.execute(
@@ -203,13 +207,13 @@ class VectorStore:
             results.append((path, snippet, float(distance)))
 
         return results
-    
+
     def search_with_provenance(
         self, query: str, limit: int = 10, min_score: Optional[float] = None
     ) -> List[dict]:
         """
         Semantic search with provenance metadata.
-        
+
         Returns list of dicts with: path, content, distance, commit_hash, author, indexed_at
         """
         self._ensure_tables()
@@ -235,51 +239,53 @@ class VectorStore:
             if min_score is not None and distance > min_score:
                 continue
             snippet = content[:500] + ("..." if len(content) > 500 else "")
-            results.append({
-                'path': path,
-                'content': snippet,
-                'distance': float(distance),
-                'similarity': 1.0 - float(distance),  # Convert to similarity score
-                'commit_hash': commit_hash,
-                'author': author,
-                'indexed_at': indexed_at,
-                'blob_hash': blob_hash
-            })
+            results.append(
+                {
+                    "path": path,
+                    "content": snippet,
+                    "distance": float(distance),
+                    "similarity": 1.0 - float(distance),  # Convert to similarity score
+                    "commit_hash": commit_hash,
+                    "author": author,
+                    "indexed_at": indexed_at,
+                    "blob_hash": blob_hash,
+                }
+            )
 
         return results
-    
+
     def get_all_entries(self) -> List[dict]:
         """
         Get all indexed entries with their metadata.
-        
+
         Used for fsck operations to check for dangling vectors.
         """
         self._ensure_tables()
         conn = self._get_connection()
-        
+
         rows = conn.execute(
             """
             SELECT rowid, path, blob_hash, commit_hash, author, indexed_at
             FROM memory_meta
             """
         ).fetchall()
-        
+
         return [
             {
-                'rowid': rowid,
-                'path': path,
-                'blob_hash': blob_hash,
-                'commit_hash': commit_hash,
-                'author': author,
-                'indexed_at': indexed_at
+                "rowid": rowid,
+                "path": path,
+                "blob_hash": blob_hash,
+                "commit_hash": commit_hash,
+                "author": author,
+                "indexed_at": indexed_at,
             }
             for rowid, path, blob_hash, commit_hash, author, indexed_at in rows
         ]
-    
+
     def delete_entry(self, rowid: int) -> bool:
         """
         Delete an entry by rowid.
-        
+
         Used by fsck to remove dangling vectors.
         """
         conn = self._get_connection()

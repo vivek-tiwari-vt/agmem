@@ -37,7 +37,9 @@ class PullCommand:
 
         remote = Remote(repo.root, args.remote)
         if not remote.get_remote_url():
-            print(f"Error: Remote '{args.remote}' has no URL. Set with: agmem remote add {args.remote} <url>")
+            print(
+                f"Error: Remote '{args.remote}' has no URL. Set with: agmem remote add {args.remote} <url>"
+            )
             return 1
 
         try:
@@ -50,6 +52,7 @@ class PullCommand:
                 remote_hash = repo.resolve_ref(remote_ref)
                 if remote_hash:
                     from memvcs.core.merge import MergeEngine
+
                     merge_engine = MergeEngine(repo)
                     try:
                         result = merge_engine.merge(remote_ref)

@@ -49,6 +49,15 @@ from .commands.fsck import FsckCommand
 from .commands.graph import GraphCommand
 from .commands.daemon import DaemonCommand
 from .commands.garden import GardenCommand
+from .commands.recall import RecallCommand
+from .commands.when import WhenCommand
+from .commands.timeline import TimelineCommand
+from .commands.pack import PackCommand
+from .commands.distill import DistillCommand
+from .commands.decay import DecayCommand
+from .commands.resurrect import ResurrectCommand
+from .commands.verify import VerifyCommand
+from .commands.repair import RepairCommand
 
 
 # List of available commands
@@ -82,14 +91,23 @@ COMMANDS = [
     GraphCommand,
     DaemonCommand,
     GardenCommand,
+    RecallCommand,
+    WhenCommand,
+    TimelineCommand,
+    PackCommand,
+    DistillCommand,
+    DecayCommand,
+    ResurrectCommand,
+    VerifyCommand,
+    RepairCommand,
 ]
 
 
 def create_parser() -> argparse.ArgumentParser:
     """Create the main argument parser."""
     parser = argparse.ArgumentParser(
-        prog='agmem',
-        description='agmem - Agentic Memory Version Control System',
+        prog="agmem",
+        description="agmem - Agentic Memory Version Control System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -110,36 +128,21 @@ Examples:
   agmem tree                              Show directory tree visually
 
 For more information: https://github.com/vivek-tiwari-vt/agmem
-        """
+        """,
     )
-    
-    parser.add_argument(
-        '--version', '-v',
-        action='version',
-        version='%(prog)s 0.1.0'
-    )
-    
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose output'
-    )
-    
+
+    parser.add_argument("--version", "-v", action="version", version="%(prog)s 0.1.0")
+
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+
     # Create subparsers for commands
-    subparsers = parser.add_subparsers(
-        dest='command',
-        help='Available commands',
-        metavar='COMMAND'
-    )
-    
+    subparsers = parser.add_subparsers(dest="command", help="Available commands", metavar="COMMAND")
+
     # Add each command
     for cmd_class in COMMANDS:
-        cmd_parser = subparsers.add_parser(
-            cmd_class.name,
-            help=cmd_class.help
-        )
+        cmd_parser = subparsers.add_parser(cmd_class.name, help=cmd_class.help)
         cmd_class.add_arguments(cmd_parser)
-    
+
     return parser
 
 
@@ -147,12 +150,12 @@ def main(args: List[str] = None) -> int:
     """Main entry point."""
     parser = create_parser()
     parsed_args = parser.parse_args(args)
-    
+
     # No command specified
     if not parsed_args.command:
         parser.print_help()
         return 0
-    
+
     # Find and execute the command
     for cmd_class in COMMANDS:
         if cmd_class.name == parsed_args.command:
@@ -164,15 +167,16 @@ def main(args: List[str] = None) -> int:
             except Exception as e:
                 if parsed_args.verbose:
                     import traceback
+
                     traceback.print_exc()
                 else:
                     print(f"Error: {e}")
                 return 1
-    
+
     # Unknown command
     print(f"Unknown command: {parsed_args.command}")
     return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

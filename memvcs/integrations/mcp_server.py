@@ -219,9 +219,7 @@ def _create_mcp_server():
                     fp = Path(root) / f
                     rel = str(fp.relative_to(repo.current_dir))
                     working_files[rel] = fp.read_bytes()
-            tree_diff = engine.diff_working_dir(
-                head_commit.store(repo.object_store), working_files
-            )
+            tree_diff = engine.diff_working_dir(head_commit.store(repo.object_store), working_files)
             return engine.format_diff(tree_diff, "HEAD", "working")
         else:
             base_ref = base or "HEAD~1"

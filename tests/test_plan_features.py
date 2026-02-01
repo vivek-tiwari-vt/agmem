@@ -80,10 +80,13 @@ class TestSearchTextFallback:
     def test_search_text_fallback_returns_matches(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = Repository.init(path=Path(tmpdir))
-            (repo.current_dir / "semantic" / "prefs.md").write_text("User prefers Python and TypeScript")
+            (repo.current_dir / "semantic" / "prefs.md").write_text(
+                "User prefers Python and TypeScript"
+            )
             (repo.current_dir / "episodic" / "s1.md").write_text("Session about Python")
             import subprocess
             import sys
+
             r = subprocess.run(
                 [sys.executable, "-m", "memvcs.cli", "search", "Python"],
                 cwd=tmpdir,
@@ -108,6 +111,7 @@ class TestCloneAndRemote:
             with tempfile.TemporaryDirectory() as dst_parent:
                 import subprocess
                 import sys
+
                 r = subprocess.run(
                     [sys.executable, "-m", "memvcs.cli", "clone", f"file://{src_dir}", "clone_dst"],
                     cwd=dst_parent,
@@ -125,8 +129,17 @@ class TestCloneAndRemote:
             repo = Repository.init(path=Path(tmpdir))
             import subprocess
             import sys
+
             r = subprocess.run(
-                [sys.executable, "-m", "memvcs.cli", "remote", "add", "origin", f"file:///tmp/remote"],
+                [
+                    sys.executable,
+                    "-m",
+                    "memvcs.cli",
+                    "remote",
+                    "add",
+                    "origin",
+                    f"file:///tmp/remote",
+                ],
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,

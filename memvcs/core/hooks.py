@@ -16,15 +16,16 @@ PII_SEVERITY_HIGH = "high"
 @dataclass
 class HookResult:
     """Result of running hooks."""
+
     success: bool
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    
+
     def add_error(self, message: str):
         """Add an error and mark as failed."""
         self.errors.append(message)
         self.success = False
-    
+
     def add_warning(self, message: str):
         """Add a warning (doesn't affect success)."""
         self.warnings.append(message)
@@ -39,6 +40,7 @@ def _pii_staged_files_to_scan(repo, staged_files: Dict[str, Any]) -> Dict[str, A
     """Return staged files to scan for PII (excludes allowlisted paths)."""
     try:
         from .config_loader import load_agmem_config, pii_enabled, pii_allowlist
+
         config = load_agmem_config(getattr(repo, "root", None))
     except ImportError:
         return staged_files
@@ -58,6 +60,7 @@ def _run_pii_hook(repo, staged_files: Dict[str, Any], result: HookResult) -> Non
     """Run PII scanner on staged files; high severity → error, else → warning."""
     try:
         from .pii_scanner import PIIScanner
+
         to_scan = _pii_staged_files_to_scan(repo, staged_files)
         pii_result = PIIScanner.scan_staged_files(repo, to_scan)
         if not pii_result.has_issues:
@@ -77,11 +80,11 @@ def _run_pii_hook(repo, staged_files: Dict[str, Any], result: HookResult) -> Non
 def run_pre_commit_hooks(repo, staged_files: Dict[str, Any]) -> HookResult:
     """
     Run all pre-commit hooks on staged files.
-    
+
     Args:
         repo: Repository instance
         staged_files: Dict of staged files with their info
-        
+
     Returns:
         HookResult with success status and any errors/warnings
     """
@@ -93,42 +96,42 @@ def run_pre_commit_hooks(repo, staged_files: Dict[str, Any]) -> HookResult:
             result.add_error(error)
     for warning in file_type_result.warnings:
         result.add_warning(warning)
-    
+
     return result
 
 
 def validate_file_types(repo, staged_files: Dict[str, Any]) -> HookResult:
     """
     Validate that staged files are allowed types.
-    
+
     Args:
         repo: Repository instance
         staged_files: Dict of staged files
-        
+
     Returns:
         HookResult with validation status
     """
     result = HookResult(success=True)
-    
+
     # Get config for allowed extensions
     config = repo.get_config()
-    allowed_extensions = config.get('allowed_extensions', ['.md', '.txt', '.json', '.yaml', '.yml'])
-    
+    allowed_extensions = config.get("allowed_extensions", [".md", ".txt", ".json", ".yaml", ".yml"])
+
     for filepath in staged_files.keys():
         path = Path(filepath)
         ext = path.suffix.lower()
-        
+
         # Skip files without extensions (might be valid)
         if not ext:
             continue
-        
+
         # Check if extension is allowed
         if ext not in allowed_extensions:
             result.add_warning(
                 f"File '{filepath}' has extension '{ext}' which may not be optimal for memory storage. "
                 f"Recommended: {', '.join(allowed_extensions)}"
             )
-    
+
     return result
 
 
@@ -139,7 +142,7 @@ _registered_hooks: List[Callable] = []
 def register_hook(hook_fn: Callable):
     """
     Register a custom pre-commit hook.
-    
+
     Args:
         hook_fn: Function that takes (repo, staged_files) and returns HookResult
     """
@@ -149,3 +152,34 @@ def register_hook(hook_fn: Callable):
 def get_registered_hooks() -> List[Callable]:
     """Get all registered hooks."""
     return _registered_hooks.copy()
+
+
+def compute_suggested_importance(
+    repo: Any,
+    staged_files: Dict[str, Any],
+    message: str,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> float:
+    """
+    Compute suggested importance score from heuristics.
+
+    Scoring factors: user emphasis in message, source authority (auto_commit), etc.
+
+    Returns:
+        Float 0.0-1.0; default 0.5 if no heuristics match.
+    """
+    metadata = metadata or {}
+    message_lower = message.lower()
+
+    # auto_commit or gardener → lower authority
+    if metadata.get("auto_commit") or metadata.get("gardener"):
+        return 0.5
+
+    # User emphasis heuristics
+    if "important" in message_lower or "important:" in message_lower:
+        return 0.8
+    if "remember" in message_lower or "remember this" in message_lower:
+        return 0.7
+
+    # Default
+    return 0.5

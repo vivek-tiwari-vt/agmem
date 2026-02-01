@@ -80,11 +80,14 @@ class CloneCommand:
 
         # Set remote origin to source
         import json
+
         config_file = target / ".mem" / "config.json"
         config = json.loads(config_file.read_text()) if config_file.exists() else {}
         if "remotes" not in config:
             config["remotes"] = {}
-        config["remotes"]["origin"] = {"url": url if url.startswith("file://") else f"file://{remote_path}"}
+        config["remotes"]["origin"] = {
+            "url": url if url.startswith("file://") else f"file://{remote_path}"
+        }
         config_file.write_text(json.dumps(config, indent=2))
 
         print(f"Cloned into {target}")

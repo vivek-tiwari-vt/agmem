@@ -10,9 +10,7 @@ from pathlib import Path
 def _is_vector_unavailable_error(exc: Exception) -> bool:
     """True if the exception indicates vector deps are missing (fall back to text search)."""
     msg = str(exc).lower()
-    return any(
-        key in msg for key in ("sqlite-vec", "sentence-transformers", "vector search")
-    )
+    return any(key in msg for key in ("sqlite-vec", "sentence-transformers", "vector search"))
 
 
 def _first_line_containing(content: str, query: str, max_len: int = 200) -> str:
@@ -38,7 +36,8 @@ class SearchCommand:
             help="Search query for semantic search",
         )
         parser.add_argument(
-            "--limit", "-n",
+            "--limit",
+            "-n",
             type=int,
             default=10,
             help="Maximum results to return (default: 10)",

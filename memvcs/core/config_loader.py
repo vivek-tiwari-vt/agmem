@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 try:
     import yaml
+
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
@@ -116,7 +117,8 @@ def _apply_gcs_credentials_path(config: Dict[str, Any], repo_root: Optional[Path
         config[CONFIG_CLOUD][CONFIG_CLOUD_GCS]["credentials_path"] = resolved
     else:
         config[CONFIG_CLOUD][CONFIG_CLOUD_GCS] = {
-            k: v for k, v in config[CONFIG_CLOUD][CONFIG_CLOUD_GCS].items()
+            k: v
+            for k, v in config[CONFIG_CLOUD][CONFIG_CLOUD_GCS].items()
             if k != "credentials_path"
         }
 

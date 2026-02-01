@@ -57,6 +57,7 @@ def run_test(name: str, fn, *args, **kwargs) -> bool:
 def run_agmem(repo_path: Path, *args) -> tuple[int, str]:
     """Run agmem command, return (exit_code, output)."""
     import subprocess
+
     env = os.environ.copy()
     env["PYTHONPATH"] = str(Path(__file__).parent.parent)
     result = subprocess.run(
@@ -71,6 +72,7 @@ def run_agmem(repo_path: Path, *args) -> tuple[int, str]:
 
 
 # --- Test Cases ---
+
 
 def test_init_basic(repo_path: Path) -> bool:
     """Test basic init."""
@@ -264,6 +266,7 @@ def test_branch_merge_conflict(repo_path: Path) -> bool:
     repo.commit("change B")
     # Merge - should have conflict
     from memvcs.core.merge import MergeEngine
+
     engine = MergeEngine(repo)
     result = engine.merge("branch-b", "branch-a")
     return not result.success and len(result.conflicts) > 0
@@ -282,6 +285,7 @@ def test_merge_success_no_conflict(repo_path: Path) -> bool:
     repo.commit("feature add")
     repo.refs.set_head_branch("main")
     from memvcs.core.merge import MergeEngine
+
     engine = MergeEngine(repo)
     result = engine.merge("feature")
     return result.success and result.commit_hash is not None
@@ -333,6 +337,7 @@ def test_reset_soft(repo_path: Path) -> bool:
     # Just verify reset doesn't crash
     try:
         from memvcs.commands.reset import ResetCommand
+
         return True
     except Exception:
         return False
@@ -358,6 +363,7 @@ def test_show_command(repo_path: Path) -> bool:
 
 # --- Main ---
 
+
 def main():
     print("=" * 70)
     print("agmem STRESS TEST & EDGE CASE SUITE")
@@ -367,7 +373,7 @@ def main():
 
     with tempfile.TemporaryDirectory(prefix="agmem-stress-") as tmpdir:
         repo_path = Path(tmpdir)
-        
+
         # Phase 1: Init & basic
         print("Phase 1: Initialization & Basic Operations")
         run_test("init (basic)", test_init_basic, repo_path)
@@ -422,22 +428,22 @@ def main():
     print("=" * 70)
     print("TEST REPORT")
     print("=" * 70)
-    
+
     passed = sum(1 for r in RESULTS if r.passed)
     failed = sum(1 for r in RESULTS if not r.passed)
     total_time = sum(r.duration for r in RESULTS)
-    
+
     print(f"\nTotal: {len(RESULTS)} tests | Passed: {passed} | Failed: {failed}")
     print(f"Total duration: {total_time:.2f}s")
     print()
-    
+
     print("Results by test:")
     for r in RESULTS:
         status = "PASS" if r.passed else "FAIL"
         print(f"  [{status}] {r.name} ({r.duration:.3f}s)")
         if not r.passed and r.error:
             print(f"         Error: {r.error[:80]}...")
-    
+
     # Write report file
     report_path = Path(__file__).parent.parent / "docs" / "aux" / "STRESS_TEST_REPORT.md"
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -462,9 +468,9 @@ def main():
         f.write("- Content deduplication\n")
         f.write("- Merge conflicts\n")
         f.write("- Checkout/restore\n")
-    
+
     print(f"\nReport written to: {report_path}")
-    
+
     return 0 if failed == 0 else 1
 
 
