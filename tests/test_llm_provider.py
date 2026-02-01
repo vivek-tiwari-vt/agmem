@@ -1,7 +1,8 @@
 """Tests for LLM provider abstraction."""
 
 import os
-from unittest.mock import patch, MagicMock
+import sys
+from unittest.mock import MagicMock, patch
 
 from memvcs.core.llm.factory import get_provider
 from memvcs.core.llm.base import LLMProvider
@@ -25,8 +26,13 @@ class TestGetProvider:
         assert provider is not None
 
 
-def _mock_create_return(content: str):
-    return MagicMock(choices=[MagicMock(message=MagicMock(content=content))])
+def _mock_openai_module(create_return_content: str):
+    """Build a fake 'openai' module so tests run without the real package (e.g. in CI)."""
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content=create_return_content))]
+    )
+    return mock_openai
 
 
 class TestOpenAIProviderMocked:
@@ -36,18 +42,18 @@ class TestOpenAIProviderMocked:
         from memvcs.core.llm.openai_provider import OpenAIProvider
 
         provider = OpenAIProvider(model="gpt-3.5-turbo")
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
-            with patch("openai.chat.completions.create") as m:
-                m.return_value = _mock_create_return("Hi")
-                out = provider.complete([{"role": "user", "content": "Hello"}])
+        mock_openai = _mock_openai_module("Hi")
+        with patch.dict(sys.modules, {"openai": mock_openai}):
+            out = provider.complete([{"role": "user", "content": "Hello"}])
         assert out == "Hi"
 
     def test_complete_mocked_no_network(self):
         from memvcs.core.llm.openai_provider import OpenAIProvider
 
         provider = OpenAIProvider(model="gpt-3.5-turbo")
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
-            with patch("openai.chat.completions.create") as m:
-                m.return_value = _mock_create_return("mocked")
-                out = provider.complete([{"role": "user", "content": "test"}], max_tokens=10)
+        mock_openai = _mock_openai_module("mocked")
+        with patch.dict(sys.modules, {"openai": mock_openai}):
+            out = provider.complete(
+                [{"role": "user", "content": "test"}], max_tokens=10
+            )
         assert out == "mocked"
