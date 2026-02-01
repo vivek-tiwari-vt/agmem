@@ -57,10 +57,10 @@ class ProveCommand:
             if not args.value:
                 print("--value required for freshness (ISO date)")
                 return 1
-            ok = prove_memory_freshness(path, args.value, out_path)
+            ok = prove_memory_freshness(path, args.value, out_path, mem_dir=repo.mem_dir)
 
         if not ok:
-            print("Proof generation not yet implemented (zk backend required).")
+            print("Proof generation failed (keyword not in file, or signing key not set for freshness).")
             return 1
         print(f"Proof written to {out_path}")
         return 0

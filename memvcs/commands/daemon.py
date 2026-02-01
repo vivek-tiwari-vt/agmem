@@ -205,13 +205,28 @@ class DaemonCommand:
 
         # Health monitoring: periodic integrity check (configurable interval)
         last_health_check = 0
-        health_check_interval = 3600  # 1 hour
+        health_check_interval = 3600  # default 1 hour
+        try:
+            from ..core.config_loader import load_agmem_config
+            config = load_agmem_config(repo.root)
+            daemon_cfg = config.get("daemon") or {}
+            health_check_interval = int(daemon_cfg.get("health_check_interval_seconds", 3600))
+            if health_check_interval <= 0:
+                health_check_interval = 0
+        except Exception:
+            pass
+        env_interval = os.environ.get("AGMEM_DAEMON_HEALTH_INTERVAL")
+        if env_interval is not None:
+            try:
+                health_check_interval = int(env_interval)
+            except ValueError:
+                pass
 
         try:
             while running:
                 time.sleep(1)
 
-                # Periodic health check (Merkle/signature, optional)
+                # Periodic health check (Merkle/signature, optional). Alert only; no destructive action.
                 if (
                     health_check_interval
                     and (time.time() - last_health_check) >= health_check_interval
@@ -229,8 +244,10 @@ class DaemonCommand:
                                 load_public_key(repo.mem_dir),
                                 mem_dir=repo.mem_dir,
                             )
-                            if not ok and err and "tampered" in (err or "").lower():
+                            if not ok and err:
                                 sys.stderr.write(f"Health check: {err}\n")
+                                if "tampered" in (err or "").lower():
+                                    sys.stderr.write("Run 'agmem fsck' for safe integrity check.\n")
                     except Exception:
                         pass
                     last_health_check = time.time()

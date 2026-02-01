@@ -5,6 +5,7 @@ Agents share model updates or aggregated summaries instead of raw episodic logs.
 Optional coordinator URL; optional differential privacy (Tier 3).
 """
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -21,30 +22,90 @@ def get_federated_config(repo_root: Path) -> Optional[Dict[str, Any]]:
     url = fed.get("coordinator_url")
     if not url:
         return None
-    return {
+    out = {
         "coordinator_url": url.rstrip("/"),
         "memory_types": fed.get("memory_types", ["episodic", "semantic"]),
     }
+    dp = fed.get("differential_privacy") or config.get("differential_privacy") or {}
+    if dp.get("enabled"):
+        out["use_dp"] = True
+        out["dp_epsilon"] = float(dp.get("epsilon", 0.1))
+        out["dp_delta"] = float(dp.get("delta", 1e-5))
+    else:
+        out["use_dp"] = False
+    return out
 
 
-def produce_local_summary(repo_root: Path, memory_types: List[str]) -> Dict[str, Any]:
+def _normalize_for_hash(text: str) -> str:
+    """Normalize text for hashing (no raw content sent)."""
+    return " ".join(text.strip().split())
+
+
+def _extract_topic_from_md(path: Path, content: str) -> str:
+    """Extract topic from frontmatter tags or first heading."""
+    if content.startswith("---"):
+        end = content.find("---", 3)
+        if end > 0:
+            try:
+                import yaml
+                fm = yaml.safe_load(content[3:end])
+                if isinstance(fm, dict):
+                    tags = fm.get("tags", [])
+                    if tags:
+                        return str(tags[0])[:50]
+            except (ImportError, Exception):
+                pass
+    first_line = content.strip().split("\n")[0] if content.strip() else ""
+    if first_line.startswith("#"):
+        return first_line.lstrip("#").strip()[:50] or "untitled"
+    return "untitled"
+
+
+def produce_local_summary(
+    repo_root: Path, memory_types: List[str], use_dp: bool = False, dp_epsilon: float = 0.1, dp_delta: float = 1e-5
+) -> Dict[str, Any]:
     """
     Produce a local summary from episodic/semantic data (no raw content).
-    Returns dict suitable for sending to coordinator (e.g. topic counts, fact hashes).
+    Returns dict with topic counts and fact hashes suitable for coordinator.
     """
     current_dir = repo_root / "current"
-    summary = {"memory_types": memory_types, "topics": {}, "fact_count": 0}
+    summary = {"memory_types": memory_types, "topics": {}, "topic_hashes": {}, "fact_count": 0}
+    all_fact_hashes: List[str] = []
+
     for mtype in memory_types:
         d = current_dir / mtype
         if not d.exists():
+            summary["topics"][mtype] = 0
+            summary["topic_hashes"][mtype] = []
             continue
-        count = 0
+        topic_to_count: Dict[str, int] = {}
+        topic_to_hashes: Dict[str, List[str]] = {}
         for f in d.rglob("*.md"):
-            if f.is_file():
-                count += 1
-        summary["topics"][mtype] = count
+            if not f.is_file():
+                continue
+            try:
+                content = f.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+            normalized = _normalize_for_hash(content)
+            if normalized:
+                h = hashlib.sha256(normalized.encode()).hexdigest()
+                all_fact_hashes.append(h)
+                topic = _extract_topic_from_md(f, content)
+                topic_to_count[topic] = topic_to_count.get(topic, 0) + 1
+                topic_to_hashes.setdefault(topic, []).append(h)
+        summary["topics"][mtype] = sum(topic_to_count.values())
+        summary["topic_hashes"][mtype] = list(topic_to_hashes.keys())
         if mtype == "semantic":
-            summary["fact_count"] = count
+            summary["fact_count"] = len(all_fact_hashes)
+
+    if use_dp and dp_epsilon and dp_delta:
+        from .privacy_budget import add_noise
+        for mtype in summary["topics"]:
+            raw = summary["topics"][mtype]
+            summary["topics"][mtype] = max(0, int(round(add_noise(float(raw), 1.0, dp_epsilon, dp_delta))))
+        summary["fact_count"] = max(0, int(round(add_noise(float(summary["fact_count"]), 1.0, dp_epsilon, dp_delta))))
+
     return summary
 
 

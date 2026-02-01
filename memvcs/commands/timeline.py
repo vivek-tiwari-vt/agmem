@@ -28,6 +28,18 @@ class TimelineCommand:
             default=20,
             help="Max commits to show (default: 20)",
         )
+        parser.add_argument(
+            "--from",
+            dest="from_ts",
+            metavar="ISO",
+            help="Start of time range (ISO 8601, e.g. 2025-01-01)",
+        )
+        parser.add_argument(
+            "--to",
+            dest="to_ts",
+            metavar="ISO",
+            help="End of time range (ISO 8601)",
+        )
 
     @staticmethod
     def execute(args) -> int:
@@ -36,6 +48,17 @@ class TimelineCommand:
             return code
 
         filepath = args.file.replace("current/", "").lstrip("/")
+        from_ts = getattr(args, "from_ts", None)
+        to_ts = getattr(args, "to_ts", None)
+        commits_in_range = None
+        if from_ts and to_ts:
+            try:
+                from ..core.temporal_index import TemporalIndex
+                ti = TemporalIndex(repo.mem_dir, repo.object_store)
+                range_entries = ti.range_query(from_ts, to_ts)
+                commits_in_range = {ch for _, ch in range_entries}
+            except Exception:
+                pass
 
         # Walk commit history
         head = repo.refs.get_head()
@@ -51,6 +74,10 @@ class TimelineCommand:
             if commit_hash in seen:
                 break
             seen.add(commit_hash)
+            if commits_in_range is not None and commit_hash not in commits_in_range:
+                commit = Commit.load(repo.object_store, commit_hash)
+                commit_hash = commit.parents[0] if commit and commit.parents else None
+                continue
 
             commit = Commit.load(repo.object_store, commit_hash)
             if not commit:

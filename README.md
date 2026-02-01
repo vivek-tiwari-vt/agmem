@@ -37,12 +37,12 @@ agmem solves all of these problems with a familiar Git-like interface.
 - ✅ **Tamper-evident audit trail** — Append-only hash-chained log (init, add, commit, checkout, merge, push, pull, config); `agmem audit` and `agmem audit --verify`
 - ✅ **Multi-agent trust** — Trust store (full / conditional / untrusted) per public key; applied on pull/merge; clone copies remote keys
 - ✅ **Conflict resolution** — `agmem resolve` with ours/theirs/both; conflicts persisted in `.mem/merge/`; path-safe
-- ✅ **Differential privacy** — Epsilon/delta budget in `.mem/privacy_budget.json`; `--private` on `agmem distill` and `agmem garden` when enabled
-- ✅ **Pack files & GC** — `agmem gc` (reachable from refs, prune loose, optional repack); pack format and index in core
+- ✅ **Differential privacy** — Epsilon/delta budget in `.mem/privacy_budget.json`; `--private` on `agmem distill` and `agmem garden`; noise applied to counts and frontmatter
+- ✅ **Pack files & GC** — `agmem gc [--repack]` (reachable from refs, prune loose, optional pack file + index); ObjectStore reads from pack when loose missing
 - ✅ **Multi-provider LLM** — OpenAI and Anthropic via `memvcs.core.llm`; config/repo or env; used by gardener, distiller, consistency, merge
 - ✅ **Temporal querying** — Point-in-time and range queries in temporal index; frontmatter timestamps
-- ✅ **Federated collaboration** — `agmem federated push|pull` (stub) for coordinator-based summary sharing
-- ✅ **Zero-knowledge proofs** — `agmem prove` (stub) for keyword containment and memory freshness
+- ✅ **Federated collaboration** — `agmem federated push|pull`; real summaries (topic counts, fact hashes); optional DP on outbound; coordinator API in docs/FEDERATED.md
+- ✅ **Zero-knowledge proofs** — `agmem prove` (hash/signature-based): keyword containment (Merkle set membership), memory freshness (signed timestamp)
 - ✅ **Daemon health** — Periodic Merkle verification in daemon loop; safe auto-remediation hooks
 - ✅ **GPU acceleration** — Vector store detects GPU for embedding model when available
 - ✅ **Optional** — `serve`, `daemon` (watch + auto-commit), `garden` (episode archival), MCP server; install extras as needed
@@ -172,9 +172,9 @@ All commands are listed below. Highlights: **`agmem blame <file>`** (who changed
 | `agmem verify [ref]` | Belief consistency (contradictions); use `--crypto` to verify commit Merkle/signature |
 | `agmem audit [--verify] [--max n]` | Show tamper-evident audit log; `--verify` checks hash chain |
 | `agmem resolve [path]` | Resolve merge conflicts (ours/theirs/both); path under `current/` |
-| `agmem gc [--dry-run] [--prune-days n]` | Garbage collection: delete unreachable loose objects; optional repack |
-| `agmem prove --memory <path> --property keyword\|freshness --value <v> [-o out]` | Generate ZK proofs (stub) |
-| `agmem federated push\|pull` | Federated collaboration (stub; requires coordinator in config) |
+| `agmem gc [--dry-run] [--repack] [--prune-days n]` | Garbage collection: delete unreachable loose objects; optional pack file creation |
+| `agmem prove --memory <path> --property keyword\|freshness --value <v> [-o out]` | Generate ZK proofs (keyword: Merkle set membership; freshness: signed timestamp) |
+| `agmem federated push\|pull` | Federated collaboration (real summaries, optional DP; requires coordinator in config) |
 
 ### Optional (install extras)
 
@@ -278,26 +278,26 @@ The following 18 capabilities are implemented (or stubbed) per the agmem feature
 
 | # | Feature | Description |
 |---|---------|-------------|
-| **9** | **Decentralized storage (IPFS)** | Push/pull via IPFS CIDs; pinning and gateway fallback. Stub in `memvcs.core.ipfs_remote`; optional dependency. |
-| **10** | **Pack files and garbage collection** | Pack loose objects into pack file + index; GC deletes unreachable objects. **Command:** `agmem gc [--dry-run] [--prune-days n]`. Config: `gc_prune_days` (default 90). |
-| **11** | **Enhanced cloud remote operations** | Push conflict detection: non–fast-forward push rejected with a clear message. S3/GCS remotes and distributed locking in storage layer. |
+| **9** | **Decentralized storage (IPFS)** | Push/pull via gateway (POST /api/v0/add, GET /ipfs/<cid>). Bundle/unbundle in `memvcs.core.ipfs_remote`; optional `agmem[ipfs]`. |
+| **10** | **Pack files and garbage collection** | Pack loose objects into pack file + index; GC deletes unreachable; ObjectStore reads from pack. **Command:** `agmem gc [--dry-run] [--repack] [--prune-days n]`. |
+| **11** | **Enhanced cloud remote operations** | Push conflict detection; S3/GCS remotes with distributed locking (acquire before push/fetch, release in finally). Config: `lock_table` for S3. |
 
 ### Tier 5 — Intelligence and retrieval
 
 | # | Feature | Description |
 |---|---------|-------------|
 | **12** | **Multi-provider LLM** | `memvcs.core.llm`: OpenAI and Anthropic; factory by config or env. Used by gardener, distiller, consistency checker, merge. Credentials via env (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`). |
-| **13** | **Enhanced semantic compression** | Multi-stage pipeline (chunk → fact extraction → dedup → embed → tiered storage); hybrid retrieval. Docstrings and design in distiller/vector store. |
-| **14** | **Temporal querying and time-travel** | Point-in-time and range queries in `memvcs.core.temporal_index`; frontmatter timestamps; “state at T” resolution. |
-| **15** | **Cross-memory relationship graph** | Knowledge graph extended with co-occurrence, semantic similarity, causal and entity edges; incremental updates. Docstrings in `knowledge_graph.py`. |
+| **13** | **Enhanced semantic compression** | Multi-stage pipeline in `memvcs.core.compression_pipeline`: chunk, fact extraction, dedup by hash; hybrid retrieval in strategies. |
+| **14** | **Temporal querying and time-travel** | Point-in-time and range in `memvcs.core.temporal_index`; CLI: `agmem when --from/--to`, `agmem timeline --from/--to`. |
+| **15** | **Cross-memory relationship graph** | Knowledge graph: co-occurrence, causal edges; incremental-update docstring in `knowledge_graph.py`. |
 
 ### Tier 6 — Operations and maintenance
 
 | # | Feature | Description |
 |---|---------|-------------|
-| **16** | **Automated memory health monitoring** | Daemon runs periodic Merkle verification; safe auto-remediation hooks; unsafe actions alert only. |
-| **17** | **GPU-accelerated operations** | Vector store detects GPU for embedding model (e.g. sentence-transformers with CUDA/Metal); transparent CPU fallback. |
-| **18** | **Test suite and quality** | Broad tests: object store, merge, crypto (Merkle, proofs, verify), trust, privacy budget, pack/GC, resolve helpers, encryption, LLM provider; CI with coverage. |
+| **16** | **Automated memory health monitoring** | Daemon: configurable `daemon.health_check_interval_seconds` and `AGMEM_DAEMON_HEALTH_INTERVAL`; alert only on verify failure; suggest `agmem fsck`. |
+| **17** | **GPU-accelerated operations** | Vector store `_device()` returns cuda/mps/cpu; model loaded with that device. |
+| **18** | **Test suite and quality** | Tests: crypto (tampered blob, key missing), encryption (wrong key, corrupted ciphertext), privacy budget, pack/GC, ZK prove/verify, federated mock, IPFS bundle; see docs/TEST_REPORT.md. |
 
 ### New files and config (summary)
 
@@ -307,7 +307,10 @@ The following 18 capabilities are implemented (or stubbed) per the agmem feature
 | `memvcs/core/audit.py` | Tamper-evident audit append and verify |
 | `memvcs/core/trust.py` | Trust store (key → level) |
 | `memvcs/core/privacy_budget.py` | Epsilon/delta budget for DP |
-| `memvcs/core/pack.py` | Pack format, index, GC |
+| `memvcs/core/pack.py` | Pack format, index, GC, repack |
+| `memvcs/core/compression_pipeline.py` | Chunk, fact extraction, dedup; hybrid retrieval |
+| `memvcs/core/zk_proofs.py` | Hash/signature-based proofs (keyword, freshness) |
+| `docs/FEDERATED.md` | Coordinator API for federated push/pull |
 | `memvcs/core/encryption.py` | AES-256-GCM, Argon2id, config |
 | `memvcs/core/llm/` | LLM provider interface and OpenAI/Anthropic |
 | `memvcs/core/zk_proofs.py` | ZK proof stubs |

@@ -38,7 +38,13 @@ class FederatedCommand:
             return 1
 
         if args.action == "push":
-            summary = produce_local_summary(repo.root, cfg["memory_types"])
+            summary = produce_local_summary(
+                repo.root,
+                cfg["memory_types"],
+                use_dp=cfg.get("use_dp", False),
+                dp_epsilon=cfg.get("dp_epsilon") or 0.1,
+                dp_delta=cfg.get("dp_delta") or 1e-5,
+            )
             msg = push_updates(repo.root, summary)
             print(msg)
             return 0 if "Pushed" in msg else 1

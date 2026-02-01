@@ -76,6 +76,23 @@ This report is based on full-flow tests (`scripts/test_full_flow.py`), manual co
 | StagedFile vs dict | ✅ Fixed | Commit and PII scanner use `_get_blob_hash` / `_get_blob_hash_from_staged` so both StagedFile and dict work. |
 | diff_with_head bytes | ✅ Fixed | Tree content decoded from bytes before `json.loads`. |
 
+### 1.8 Test suite (edge cases and coverage)
+
+| Area | Status | Notes |
+|------|--------|------|
+| **Crypto** | ✅ Tests | Merkle build/verify, tampered blob fails verification, signature present but no public key. |
+| **Encryption** | ✅ Tests | Round-trip, wrong key fails, corrupted ciphertext fails. |
+| **Privacy budget** | ✅ Tests | load_budget, spend_epsilon, add_noise, Gardener/Distiller DP integration (mocked). |
+| **Pack/GC** | ✅ Tests | list_loose_objects, run_gc, write_pack, retrieve_from_pack, ObjectStore read from pack, run_repack dry-run. |
+| **ZK proofs** | ✅ Tests | prove_keyword_containment / verify_proof round-trip; keyword not in file returns False; freshness (skipped without signing key). |
+| **Federated** | ✅ Tests | produce_local_summary (topic_hashes, fact_count), DP noising; push/pull with mock coordinator. |
+| **IPFS** | ✅ Tests | parse_ipfs_url, bundle/unbundle round-trip; push/pull with mock gateway. |
+
+### Security (vulnerability check)
+
+- **Bandit**: Run `bandit -r memvcs -ll` (install with `pip install agmem[dev]` or `pip install bandit[toml]`). Fix any high/critical findings (path traversal, injection, insecure crypto).
+- **Manual**: New and modified code reviewed for: path traversal (user paths under repo/current), injection (subprocess, HTTP, config), key handling (no keys in logs), dependency versions (known CVEs).
+
 ---
 
 ## 2. What Does Not Work or Is Limited

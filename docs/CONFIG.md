@@ -27,6 +27,8 @@ cloud:
     lock_table: null          # optional DynamoDB table for distributed locks
 ```
 
+- When using **s3://** or **gs://** as a remote URL (`agmem remote add origin s3://bucket/prefix`), push and fetch **acquire a distributed lock** (DynamoDB for S3 when `lock_table` is set, or storage-based lock for GCS) before running and **release it** in a `finally` block. This prevents concurrent pushes/fetches from corrupting the remote.
+
 - Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the environment (or use `~/.aws/credentials` and omit these in config).
 - If `access_key_var` / `secret_key_var` are set, agmem resolves credentials with `os.getenv(var)` and passes them to the S3 client. If unset, boto3 uses its default credential chain.
 
@@ -43,6 +45,16 @@ cloud:
 - **credentials_path**: If relative, resolved from repo root or user home. Must be under an allowed root (no path traversal).
 - **credentials_json_var**: Name of an env var whose value is a JSON string (service account key). Useful for CI; never put the JSON in the config file.
 - If neither is set, GCS uses Application Default Credentials (`GOOGLE_APPLICATION_CREDENTIALS` or `gcloud auth`).
+
+### Daemon health monitoring
+
+```yaml
+daemon:
+  health_check_interval_seconds: 3600   # periodic Merkle/signature check (default 3600); 0 to disable
+```
+
+- Override via env: `AGMEM_DAEMON_HEALTH_INTERVAL` (seconds).
+- On verify failure the daemon only logs to stderr and suggests `agmem fsck`; no automatic destructive action.
 
 ### PII / hooks
 

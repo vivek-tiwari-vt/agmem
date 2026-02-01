@@ -77,3 +77,26 @@ class TestObjectStoreEncryptor:
         encryptor = ObjectStoreEncryptor(lambda: None)
         with pytest.raises(ValueError, match="passphrase required"):
             encryptor.decrypt_payload(b"x" * 50)
+
+
+@pytest.mark.skipif(not ENCRYPTION_AVAILABLE, reason="cryptography not installed")
+class TestEncryptionEdgeCases:
+    """Edge cases: wrong key, corrupted ciphertext."""
+
+    def test_decrypt_with_wrong_key_fails(self):
+        from memvcs.core.encryption import encrypt, decrypt
+
+        key = b"0" * 32
+        wrong_key = b"1" * 32
+        plain = b"secret"
+        iv, ct = encrypt(plain, key)
+        with pytest.raises(Exception):
+            decrypt(iv, ct, wrong_key)
+
+    def test_decrypt_corrupted_ciphertext_fails(self):
+        from memvcs.core.encryption import encrypt, decrypt
+
+        key = b"0" * 32
+        iv, ct = encrypt(b"secret", key)
+        with pytest.raises(Exception):
+            decrypt(iv, ct[:-1] + bytes([ct[-1] ^ 1]), key)

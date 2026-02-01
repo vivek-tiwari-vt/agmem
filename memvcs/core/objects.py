@@ -83,7 +83,7 @@ class ObjectStore:
 
     def retrieve(self, hash_id: str, obj_type: str) -> Optional[bytes]:
         """
-        Retrieve content by hash ID.
+        Retrieve content by hash ID (loose object or pack).
 
         Args:
             hash_id: SHA-256 hash of the object
@@ -94,31 +94,41 @@ class ObjectStore:
         """
         obj_path = self._get_object_path(hash_id, obj_type)
 
-        if not obj_path.exists():
-            return None
+        if obj_path.exists():
+            raw = obj_path.read_bytes()
+            # Optionally decrypt (iv+tag minimum 12+16 bytes)
+            if self._encryptor and len(raw) >= 12 + 16:
+                try:
+                    raw = self._encryptor.decrypt_payload(raw)
+                except Exception:
+                    pass  # legacy plain compressed
+            full_content = zlib.decompress(raw)
+            null_idx = full_content.index(b"\0")
+            content = full_content[null_idx + 1 :]
+            return content
 
-        raw = obj_path.read_bytes()
-        # Optionally decrypt (iv+tag minimum 12+16 bytes)
-        if self._encryptor and len(raw) >= 12 + 16:
-            try:
-                raw = self._encryptor.decrypt_payload(raw)
-            except Exception:
-                pass  # legacy plain compressed
-        full_content = zlib.decompress(raw)
-
-        # Parse header
-        null_idx = full_content.index(b"\0")
-        header = full_content[:null_idx].decode()
-        content = full_content[null_idx + 1 :]
-
-        return content
+        # Try pack file when loose object missing
+        try:
+            from .pack import retrieve_from_pack
+            result = retrieve_from_pack(self.objects_dir, hash_id, expected_type=obj_type)
+            if result is not None:
+                return result[1]
+        except Exception:
+            pass
+        return None
 
     def exists(self, hash_id: str, obj_type: str) -> bool:
-        """Check if an object exists. Returns False for invalid hash (no raise)."""
+        """Check if an object exists (loose or pack). Returns False for invalid hash (no raise)."""
         if not _valid_object_hash(hash_id):
             return False
         obj_path = self._get_object_path(hash_id, obj_type)
-        return obj_path.exists()
+        if obj_path.exists():
+            return True
+        try:
+            from .pack import retrieve_from_pack
+            return retrieve_from_pack(self.objects_dir, hash_id, expected_type=obj_type) is not None
+        except Exception:
+            return False
 
     def delete(self, hash_id: str, obj_type: str) -> bool:
         """Delete an object. Returns True if deleted, False if not found."""

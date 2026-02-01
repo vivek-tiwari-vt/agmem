@@ -1,17 +1,22 @@
 """
-Remote sync for agmem - file-based push/pull/clone.
+Remote sync for agmem - file-based and cloud (S3/GCS) push/pull/clone.
 
-Supports file:// URLs for local or mounted directories.
+Supports file:// URLs and s3:///gs:// with optional distributed locking.
 """
 
 import json
 import shutil
 from pathlib import Path
-from typing import Optional, Set
+from typing import Optional, Set, Any
 from urllib.parse import urlparse
 
 from .objects import ObjectStore, Commit, Tree, Blob, _valid_object_hash
 from .refs import RefsManager, _ref_path_under_root
+
+
+def _is_cloud_remote(url: str) -> bool:
+    """Return True if URL is S3 or GCS (use storage adapter + optional lock)."""
+    return url.startswith("s3://") or url.startswith("gs://")
 
 
 def parse_remote_url(url: str) -> Path:
@@ -59,6 +64,50 @@ def _collect_objects_from_commit(store: ObjectStore, commit_hash: str) -> Set[st
 
         # Blob - no follow
 
+    return seen
+
+
+def _read_object_from_adapter(adapter: Any, hash_id: str) -> Optional[tuple]:
+    """Read object from storage adapter. Returns (obj_type, content_bytes) or None."""
+    import zlib
+    for obj_type in ["commit", "tree", "blob", "tag"]:
+        rel = f".mem/objects/{obj_type}/{hash_id[:2]}/{hash_id[2:]}"
+        if not adapter.exists(rel):
+            continue
+        try:
+            raw = adapter.read_file(rel)
+            full = zlib.decompress(raw)
+            null_idx = full.index(b"\0")
+            content = full[null_idx + 1:]
+            return (obj_type, content)
+        except Exception:
+            continue
+    return None
+
+
+def _collect_objects_from_commit_remote(adapter: Any, commit_hash: str) -> Set[str]:
+    """Collect object hashes reachable from a commit when reading from storage adapter."""
+    seen = set()
+    todo = [commit_hash]
+    while todo:
+        h = todo.pop()
+        if h in seen:
+            continue
+        seen.add(h)
+        pair = _read_object_from_adapter(adapter, h)
+        if pair is None:
+            continue
+        obj_type, content = pair
+        if obj_type == "commit":
+            data = json.loads(content)
+            todo.extend(data.get("parents", []))
+            if "tree" in data:
+                todo.append(data["tree"])
+        elif obj_type == "tree":
+            data = json.loads(content)
+            for e in data.get("entries", []):
+                if "hash" in e:
+                    todo.append(e["hash"])
     return seen
 
 
@@ -139,6 +188,113 @@ class Remote:
         self._config["remotes"][self.name]["url"] = url
         self._save_config(self._config)
 
+    def _push_via_storage(self, adapter: Any, branch: Optional[str] = None) -> str:
+        """Push objects and refs via storage adapter. Caller must hold lock if needed."""
+        refs = RefsManager(self.mem_dir)
+        store = ObjectStore(self.objects_dir)
+        to_push = set()
+        for b in refs.list_branches():
+            if branch and b != branch:
+                continue
+            ch = refs.get_branch_commit(b)
+            if ch:
+                to_push.update(_collect_objects_from_commit(store, ch))
+        for t in refs.list_tags():
+            ch = refs.get_tag_commit(t)
+            if ch:
+                to_push.update(_collect_objects_from_commit(store, ch))
+        copied = 0
+        for h in to_push:
+            obj_type = None
+            for otype in ["blob", "tree", "commit", "tag"]:
+                p = self.objects_dir / otype / h[:2] / h[2:]
+                if p.exists():
+                    obj_type = otype
+                    break
+            if not obj_type:
+                continue
+            rel = f".mem/objects/{obj_type}/{h[:2]}/{h[2:]}"
+            if not adapter.exists(rel):
+                try:
+                    data = p.read_bytes()
+                    adapter.makedirs(f".mem/objects/{obj_type}/{h[:2]}")
+                    adapter.write_file(rel, data)
+                    copied += 1
+                except Exception:
+                    pass
+        for b in refs.list_branches():
+            if branch and b != branch:
+                continue
+            ch = refs.get_branch_commit(b)
+            if ch and _ref_path_under_root(b, refs.heads_dir):
+                parent = str(Path(b).parent)
+                if parent != ".":
+                    adapter.makedirs(f".mem/refs/heads/{parent}")
+                adapter.write_file(f".mem/refs/heads/{b}", (ch + "\n").encode())
+        for t in refs.list_tags():
+            ch = refs.get_tag_commit(t)
+            if ch and _ref_path_under_root(t, refs.tags_dir):
+                parent = str(Path(t).parent)
+                if parent != ".":
+                    adapter.makedirs(f".mem/refs/tags/{parent}")
+                adapter.write_file(f".mem/refs/tags/{t}", (ch + "\n").encode())
+        try:
+            from .audit import append_audit
+            append_audit(self.mem_dir, "push", {"remote": self.name, "branch": branch, "copied": copied})
+        except Exception:
+            pass
+        return f"Pushed {copied} object(s) to {self.name}"
+
+    def _fetch_via_storage(self, adapter: Any, branch: Optional[str] = None) -> str:
+        """Fetch objects and refs via storage adapter. Caller must hold lock if needed."""
+        to_fetch = set()
+        try:
+            heads = adapter.list_dir(".mem/refs/heads")
+            for fi in heads:
+                if fi.is_dir:
+                    continue
+                branch_name = fi.path.replace(".mem/refs/heads/", "").replace("\\", "/").strip("/")
+                if branch and branch_name != branch:
+                    continue
+                data = adapter.read_file(fi.path)
+                ch = data.decode().strip()
+                if ch and _valid_object_hash(ch):
+                    to_fetch.update(_collect_objects_from_commit_remote(adapter, ch))
+            tags = adapter.list_dir(".mem/refs/tags")
+            for fi in tags:
+                if fi.is_dir:
+                    continue
+                data = adapter.read_file(fi.path)
+                ch = data.decode().strip()
+                if ch and _valid_object_hash(ch):
+                    to_fetch.update(_collect_objects_from_commit_remote(adapter, ch))
+        except Exception:
+            pass
+        if not to_fetch:
+            return f"Fetched 0 object(s) from {self.name}"
+        local_has = _list_local_objects(self.objects_dir)
+        missing = to_fetch - local_has
+        copied = 0
+        for h in missing:
+            for otype in ["blob", "tree", "commit", "tag"]:
+                rel = f".mem/objects/{otype}/{h[:2]}/{h[2:]}"
+                if adapter.exists(rel):
+                    try:
+                        data = adapter.read_file(rel)
+                        p = self.objects_dir / otype / h[:2] / h[2:]
+                        p.parent.mkdir(parents=True, exist_ok=True)
+                        p.write_bytes(data)
+                        copied += 1
+                    except Exception:
+                        pass
+                    break
+        try:
+            from .audit import append_audit
+            append_audit(self.mem_dir, "fetch", {"remote": self.name, "branch": branch, "copied": copied})
+        except Exception:
+            pass
+        return f"Fetched {copied} object(s) from {self.name}"
+
     def push(self, branch: Optional[str] = None) -> str:
         """
         Push objects and refs to remote.
@@ -147,6 +303,22 @@ class Remote:
         url = self.get_remote_url()
         if not url:
             raise ValueError(f"Remote '{self.name}' has no URL configured")
+
+        if _is_cloud_remote(url):
+            try:
+                from .storage import get_adapter
+                from .storage.base import LockError
+                adapter = get_adapter(url, self._config)
+                lock_name = "agmem-push"
+                adapter.acquire_lock(lock_name, 30)
+                try:
+                    return self._push_via_storage(adapter, branch)
+                finally:
+                    adapter.release_lock(lock_name)
+            except LockError as e:
+                raise ValueError(f"Could not acquire remote lock: {e}") from e
+            except Exception as e:
+                raise ValueError(f"Push to cloud failed: {e}") from e
 
         remote_path = parse_remote_url(url)
         remote_mem = remote_path / ".mem"
@@ -246,6 +418,22 @@ class Remote:
         url = self.get_remote_url()
         if not url:
             raise ValueError(f"Remote '{self.name}' has no URL configured")
+
+        if _is_cloud_remote(url):
+            try:
+                from .storage import get_adapter
+                from .storage.base import LockError
+                adapter = get_adapter(url, self._config)
+                lock_name = "agmem-fetch"
+                adapter.acquire_lock(lock_name, 30)
+                try:
+                    return self._fetch_via_storage(adapter, branch)
+                finally:
+                    adapter.release_lock(lock_name)
+            except LockError as e:
+                raise ValueError(f"Could not acquire remote lock: {e}") from e
+            except Exception as e:
+                raise ValueError(f"Fetch from cloud failed: {e}") from e
 
         remote_path = parse_remote_url(url)
         remote_objects = remote_path / ".mem" / "objects"

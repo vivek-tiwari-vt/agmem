@@ -50,14 +50,19 @@ class GardenCommand:
         if code != 0:
             return code
 
-        if getattr(args, "private", False):
+        use_dp = getattr(args, "private", False)
+        dp_epsilon = None
+        dp_delta = None
+        if use_dp:
             from ..core.privacy_budget import load_budget, spend_epsilon
 
-            spent, max_eps, _ = load_budget(repo.mem_dir)
+            spent, max_eps, delta = load_budget(repo.mem_dir)
             epsilon_cost = 0.1
             if not spend_epsilon(repo.mem_dir, epsilon_cost):
                 print(f"Privacy budget exceeded (spent {spent:.2f}, max {max_eps}).")
                 return 1
+            dp_epsilon = 0.05
+            dp_delta = delta
 
         # Build config
         config = GardenerConfig(
@@ -65,6 +70,9 @@ class GardenCommand:
             auto_commit=not args.no_commit,
             llm_provider=args.llm if args.llm != "none" else None,
             llm_model=args.model,
+            use_dp=use_dp,
+            dp_epsilon=dp_epsilon,
+            dp_delta=dp_delta,
         )
 
         # Create gardener

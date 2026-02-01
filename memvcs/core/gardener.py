@@ -43,6 +43,9 @@ class GardenerConfig:
     llm_provider: Optional[str] = None  # "openai", "anthropic", etc.
     llm_model: Optional[str] = None
     auto_commit: bool = True
+    use_dp: bool = False
+    dp_epsilon: Optional[float] = None
+    dp_delta: Optional[float] = None
 
 
 @dataclass
@@ -351,14 +354,20 @@ class Gardener:
         except ValueError:
             insight_path = self.semantic_dir / f"insight-{timestamp}.md"
 
-        # Generate frontmatter
+        # Generate frontmatter (optionally noised for differential privacy)
+        source_episodes = len(cluster.episodes)
+        if self.config.use_dp and self.config.dp_epsilon is not None and self.config.dp_delta is not None:
+            from .privacy_budget import add_noise
+            source_episodes = max(0, int(round(add_noise(
+                float(source_episodes), 1.0, self.config.dp_epsilon, self.config.dp_delta
+            ))))
         frontmatter = {
             "schema_version": "1.0",
             "last_updated": datetime.utcnow().isoformat() + "Z",
             "source_agent_id": "gardener",
             "memory_type": "semantic",
             "tags": cluster.tags + ["auto-generated", "insight"],
-            "source_episodes": len(cluster.episodes),
+            "source_episodes": source_episodes,
         }
 
         # Write file
@@ -487,11 +496,21 @@ class Gardener:
             except Exception as e:
                 print(f"Warning: Auto-commit failed: {e}")
 
+        clusters_found = len(clusters)
+        insights_generated = insights_written
+        episodes_archived = archived_count
+        if self.config.use_dp and self.config.dp_epsilon is not None and self.config.dp_delta is not None:
+            from .privacy_budget import add_noise
+            sensitivity = 1.0
+            clusters_found = max(0, int(round(add_noise(float(clusters_found), sensitivity, self.config.dp_epsilon, self.config.dp_delta))))
+            insights_generated = max(0, int(round(add_noise(float(insights_generated), sensitivity, self.config.dp_epsilon, self.config.dp_delta))))
+            episodes_archived = max(0, int(round(add_noise(float(episodes_archived), sensitivity, self.config.dp_epsilon, self.config.dp_delta))))
+
         return GardenerResult(
             success=True,
-            clusters_found=len(clusters),
-            insights_generated=insights_written,
-            episodes_archived=archived_count,
+            clusters_found=clusters_found,
+            insights_generated=insights_generated,
+            episodes_archived=episodes_archived,
             commit_hash=commit_hash,
             message=f"Processed {len(clusters)} clusters, generated {insights_written} insights",
         )

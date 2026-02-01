@@ -53,21 +53,29 @@ class DistillCommand:
         if code != 0:
             return code
 
-        if getattr(args, "private", False):
+        use_dp = getattr(args, "private", False)
+        dp_epsilon = None
+        dp_delta = None
+        if use_dp:
             from ..core.privacy_budget import load_budget, spend_epsilon
 
-            spent, max_eps, _ = load_budget(repo.mem_dir)
+            spent, max_eps, delta = load_budget(repo.mem_dir)
             epsilon_cost = 0.1
             if not spend_epsilon(repo.mem_dir, epsilon_cost):
                 print(f"Privacy budget exceeded (spent {spent:.2f}, max {max_eps}).")
                 return 1
             if spent + epsilon_cost > max_eps * 0.8:
                 print(f"Privacy budget low: {spent + epsilon_cost:.2f}/{max_eps}")
+            dp_epsilon = 0.05
+            dp_delta = delta
 
         config = DistillerConfig(
             source_dir=args.source,
             target_dir=args.target,
             create_safety_branch=not args.no_branch,
+            use_dp=use_dp,
+            dp_epsilon=dp_epsilon,
+            dp_delta=dp_delta,
         )
         distiller = Distiller(repo, config)
 

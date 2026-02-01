@@ -65,3 +65,56 @@ class TestVerifyCommit:
             ok, err = verify_commit(store, ch, None, mem_dir=Path(tmpdir))
             assert ok is False
             assert "merkle_root" in (err or "")
+
+    def test_verify_commit_tampered_blob_fails(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = ObjectStore(Path(tmpdir))
+            blob = Blob(content=b"x")
+            bh = blob.store(store)
+            entries = [TreeEntry("100644", "blob", bh, "f", "")]
+            tree = Tree(entries=entries)
+            th = tree.store(store)
+            root = build_merkle_tree(_collect_blob_hashes_from_tree(store, th))
+            if not root:
+                root = build_merkle_tree([bh])
+            commit = Commit(
+                tree=th,
+                parents=[],
+                author="Test",
+                timestamp="2025-01-01T00:00:00Z",
+                message="m",
+                metadata={"merkle_root": root, "signature": ""},
+            )
+            ch = commit.store(store)
+            ok, err = verify_commit(store, ch, None, mem_dir=Path(tmpdir))
+            assert ok is True
+            blob_path = store._get_object_path(bh, "blob")
+            raw = blob_path.read_bytes()
+            blob_path.write_bytes(raw[:10] + b"X" + raw[11:])
+            ok2, err2 = verify_commit(store, ch, None, mem_dir=Path(tmpdir))
+            assert ok2 is False
+            assert "tampered" in (err2 or "").lower() or "mismatch" in (err2 or "").lower()
+
+    def test_verify_commit_signature_present_but_no_public_key(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = ObjectStore(Path(tmpdir))
+            blob = Blob(content=b"x")
+            bh = blob.store(store)
+            tree = Tree(entries=[TreeEntry("100644", "blob", bh, "f", "")])
+            th = tree.store(store)
+            root = build_merkle_tree(_collect_blob_hashes_from_tree(store, th))
+            if not root:
+                root = build_merkle_tree([bh])
+            commit = Commit(
+                tree=th,
+                parents=[],
+                author="T",
+                timestamp="2025-01-01T00:00:00Z",
+                message="m",
+                metadata={"merkle_root": root, "signature": "a" * 128},
+            )
+            ch = commit.store(store)
+            (Path(tmpdir) / "keys").mkdir(exist_ok=True)
+            ok, err = verify_commit(store, ch, None, mem_dir=Path(tmpdir))
+            assert ok is False
+            assert "key" in (err or "").lower() or "signature" in (err or "").lower()

@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from typing import Optional, List, Tuple, Any, Dict
 
-from .objects import ObjectStore, Tree, Commit
+from .objects import ObjectStore, Tree, Commit, Blob
 
 # Ed25519 via cryptography (optional)
 try:
@@ -239,6 +239,17 @@ def verify_commit(
     stored_sig = (commit.metadata or {}).get("signature")
     if not stored_root:
         return (False, "commit has no merkle_root (unverified)")
+    
+    # Verify that blob objects can be loaded successfully (detects tampering in compressed/encrypted content)
+    blob_hashes = _collect_blob_hashes_from_tree(store, commit.tree)
+    for blob_hash in blob_hashes:
+        try:
+            blob = Blob.load(store, blob_hash)
+            if blob is None:
+                return (False, f"blob {blob_hash[:8]} corrupted or missing")
+        except Exception as e:
+            return (False, f"merkle_root mismatch (commit tampered)")
+    
     computed_root = build_merkle_root_for_commit(store, commit_hash)
     if not computed_root:
         return (False, "could not build Merkle tree (missing tree/blobs)")

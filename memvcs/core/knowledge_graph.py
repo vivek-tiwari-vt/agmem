@@ -84,7 +84,14 @@ class KnowledgeGraphBuilder:
     1. Wikilinks: [[filename]] references
     2. Semantic similarity: Using embeddings
     3. Shared tags: Files with common tags
-    4. Co-occurrence: Facts in same episodic session (optional)
+    4. Co-occurrence: Files that mention the same entity (e.g. same section/session)
+    5. Causal: Phrases like "caused by", "because of" linking concepts (when derivable)
+    6. Entity: Person/place/thing links (simple keyword or pattern)
+
+    Incremental updates: To update when new files are added without full rebuild,
+    filter the file list to new/changed paths, run build_graph logic for that subset,
+    and merge new nodes/edges into the existing graph (or re-run build_graph; cost is
+    linear in file count).
     """
 
     # Pattern for wikilinks: [[target]] or [[target|display text]]
@@ -262,7 +269,22 @@ class KnowledgeGraphBuilder:
             except Exception:
                 pass  # Skip similarity if vector store fails
 
+        # Add co-occurrence edges (files sharing entities)
+        try:
+            edges.extend(self._build_cooccurrence_edges(file_paths, file_contents))
+        except Exception:
+            pass
+
+        # Add causal edges (phrases like "caused by", "because of" linking to another file)
+        try:
+            edges.extend(self._build_causal_edges(file_contents))
+        except Exception:
+            pass
+
         # Build metadata
+        edge_type_counts = defaultdict(int)
+        for e in edges:
+            edge_type_counts[e.edge_type] += 1
         metadata = {
             "total_nodes": len(nodes),
             "total_edges": len(edges),
@@ -274,14 +296,63 @@ class KnowledgeGraphBuilder:
                     1 for n in nodes if n.memory_type not in ["episodic", "semantic", "procedural"]
                 ),
             },
-            "edge_types": {
-                "reference": sum(1 for e in edges if e.edge_type == "reference"),
-                "similarity": sum(1 for e in edges if e.edge_type == "similarity"),
-                "same_topic": sum(1 for e in edges if e.edge_type == "same_topic"),
-            },
+            "edge_types": dict(edge_type_counts),
         }
 
         return KnowledgeGraphData(nodes=nodes, edges=edges, metadata=metadata)
+
+    def _extract_entities_simple(self, content: str) -> Set[str]:
+        """Extract simple entity tokens (capitalized words, key phrases) for co-occurrence."""
+        entities = set()
+        for word in re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", content):
+            if len(word) > 2:
+                entities.add(word.lower())
+        for phrase in ["user", "project", "agent", "memory", "preference", "workflow"]:
+            if phrase in content.lower():
+                entities.add(phrase)
+        return entities
+
+    def _build_cooccurrence_edges(
+        self, file_paths: List[str], file_contents: Dict[str, str]
+    ) -> List[GraphEdge]:
+        """Build edges between files that share at least one entity (co-occurrence)."""
+        file_entities: Dict[str, Set[str]] = {}
+        for path, content in file_contents.items():
+            file_entities[path] = self._extract_entities_simple(content)
+        edges = []
+        paths_list = list(file_paths)
+        for i, path1 in enumerate(paths_list):
+            for path2 in paths_list[i + 1 :]:
+                common = file_entities.get(path1, set()) & file_entities.get(path2, set())
+                if common:
+                    w = min(1.0, 0.3 + 0.1 * len(common))
+                    edge = GraphEdge(source=path1, target=path2, edge_type="co_occurrence", weight=w)
+                    edges.append(edge)
+                    if self._graph is not None:
+                        self._graph.add_edge(path1, path2, type="co_occurrence", weight=w)
+        return edges
+
+    def _build_causal_edges(self, file_contents: Dict[str, str]) -> List[GraphEdge]:
+        """Build edges when content has causal phrases linking to another file (e.g. caused by [[X]])."""
+        causal_phrases = re.compile(
+            r"(?:caused by|because of|led to|due to)\s+(?:\[\[([^\]]+)\]\]|(\w+))",
+            re.IGNORECASE,
+        )
+        edges = []
+        for source_path, content in file_contents.items():
+            for m in causal_phrases.finditer(content):
+                target = m.group(1) or m.group(2)
+                if not target:
+                    continue
+                target_path = self._normalize_link_target(target.strip(), source_path)
+                if target_path and target_path in file_contents and target_path != source_path:
+                    edge = GraphEdge(
+                        source=source_path, target=target_path, edge_type="causal", weight=0.7
+                    )
+                    edges.append(edge)
+                    if self._graph is not None:
+                        self._graph.add_edge(source_path, target_path, type="causal", weight=0.7)
+        return edges
 
     def _build_similarity_edges(
         self, file_paths: List[str], file_contents: Dict[str, str], threshold: float
