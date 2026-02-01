@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agmem"
-version = "0.1.5"
+version = "0.1.6"
 description = "Agentic Memory Version Control System - Git for AI agent memories"
 readme = "README.md"
 license = {text = "MIT"}
