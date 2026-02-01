@@ -60,6 +60,7 @@ class VectorStore:
         """Return device for embeddings: cuda/mps/cpu. GPU acceleration when available."""
         try:
             import torch
+
             if torch.cuda.is_available():
                 return "cuda"
             if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():

@@ -58,5 +58,6 @@ def spend_epsilon(mem_dir: Path, epsilon: float, max_epsilon: Optional[float] = 
 def add_noise(value: float, sensitivity: float, epsilon: float, delta: float = 1e-5) -> float:
     """Add Gaussian noise for (epsilon, delta)-DP. sigma = sensitivity * sqrt(2*ln(1.25/delta)) / epsilon."""
     import random
+
     sigma = sensitivity * math.sqrt(2 * math.log(1.25 / delta)) / epsilon
     return value + random.gauss(0, sigma)

@@ -16,9 +16,13 @@ from .objects import ObjectStore, Tree, Commit
 
 # Ed25519 via cryptography (optional)
 try:
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PrivateKey,
+        Ed25519PublicKey,
+    )
     from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives import serialization
+
     ED25519_AVAILABLE = True
 except ImportError:
     ED25519_AVAILABLE = False
@@ -104,9 +108,7 @@ def merkle_proof(blob_hashes: List[str], target_blob_hash: str) -> Optional[List
     return proof if proof else []
 
 
-def verify_merkle_proof(
-    blob_hash: str, proof: List[Tuple[str, str]], expected_root: str
-) -> bool:
+def verify_merkle_proof(blob_hash: str, proof: List[Tuple[str, str]], expected_root: str) -> bool:
     """Verify a Merkle proof for a blob against expected root."""
     current = _merkle_hash(blob_hash.encode())
     for sibling, side in proof:
@@ -118,6 +120,7 @@ def verify_merkle_proof(
 
 
 # --- Signing (Ed25519) ---
+
 
 def _keys_dir(mem_dir: Path) -> Path:
     return mem_dir / "keys"
@@ -139,7 +142,9 @@ def ensure_keys_dir(mem_dir: Path) -> Path:
 def generate_keypair(mem_dir: Path) -> Tuple[bytes, bytes]:
     """Generate Ed25519 keypair. Returns (private_pem, public_pem). Requires cryptography."""
     if not ED25519_AVAILABLE:
-        raise RuntimeError("Signing requires 'cryptography'; install with: pip install cryptography")
+        raise RuntimeError(
+            "Signing requires 'cryptography'; install with: pip install cryptography"
+        )
     private_key = Ed25519PrivateKey.generate()
     public_key = private_key.public_key()
     private_pem = private_key.private_bytes(

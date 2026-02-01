@@ -72,7 +72,11 @@ def set_trust(mem_dir: Path, public_key_pem: Union[bytes, str], level: str) -> N
     key_pem_str = pem_b.decode("utf-8")
     _trust_dir(mem_dir).mkdir(parents=True, exist_ok=True)
     entries = load_trust_store(mem_dir)
-    entries = [e for e in entries if (e.get("key_id") or _key_id((e.get("public_key_pem") or "").encode())) != kid]
+    entries = [
+        e
+        for e in entries
+        if (e.get("key_id") or _key_id((e.get("public_key_pem") or "").encode())) != kid
+    ]
     entries.append({"key_id": kid, "public_key_pem": key_pem_str, "level": level})
     _trust_file(mem_dir).write_text(json.dumps({"entries": entries}, indent=2))
 
@@ -84,6 +88,7 @@ def find_verifying_key(mem_dir: Path, commit_metadata: Dict[str, Any]) -> Option
     Returns public_key_pem of first key that verifies, or None.
     """
     from .crypto_verify import verify_signature
+
     root = commit_metadata.get("merkle_root")
     sig = commit_metadata.get("signature")
     if not root or not sig:

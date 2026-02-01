@@ -113,17 +113,29 @@ class Distiller:
         if self.config.llm_provider and self.config.llm_model:
             try:
                 from .llm import get_provider
-                config = {"llm_provider": self.config.llm_provider, "llm_model": self.config.llm_model}
+
+                config = {
+                    "llm_provider": self.config.llm_provider,
+                    "llm_model": self.config.llm_model,
+                }
                 provider = get_provider(config=config)
                 if provider:
                     text = provider.complete(
                         [
-                            {"role": "system", "content": "Extract factual statements from the text. Output as bullet points (one fact per line). Focus on: user preferences, learned facts, key decisions."},
-                            {"role": "user", "content": f"Topic: {cluster.topic}\n\n{combined[:4000]}"},
+                            {
+                                "role": "system",
+                                "content": "Extract factual statements from the text. Output as bullet points (one fact per line). Focus on: user preferences, learned facts, key decisions.",
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Topic: {cluster.topic}\n\n{combined[:4000]}",
+                            },
                         ],
                         max_tokens=500,
                     )
-                    return [line.strip() for line in text.splitlines() if line.strip().startswith("-")][:15]
+                    return [
+                        line.strip() for line in text.splitlines() if line.strip().startswith("-")
+                    ][:15]
             except Exception:
                 pass
 

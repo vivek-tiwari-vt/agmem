@@ -49,6 +49,7 @@ class TestEncryptDecrypt:
 
     def test_encryptor_round_trip(self):
         from memvcs.core.encryption import encrypt, decrypt
+
         key = b"0" * 32
         plain = b"secret data"
         iv, ct = encrypt(plain, key)
@@ -57,6 +58,7 @@ class TestEncryptDecrypt:
 
     def test_encryptor_different_iv_each_time(self):
         from memvcs.core.encryption import encrypt
+
         key = b"0" * 32
         _, ct1 = encrypt(b"x", key)
         _, ct2 = encrypt(b"x", key)

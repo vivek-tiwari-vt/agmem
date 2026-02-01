@@ -45,6 +45,7 @@ class Repository:
                     ObjectStoreEncryptor,
                     get_key_from_env_or_cache,
                 )
+
                 if load_encryption_config(self.mem_dir):
                     encryptor = ObjectStoreEncryptor(
                         lambda: get_key_from_env_or_cache(self.mem_dir)
@@ -114,6 +115,7 @@ class Repository:
         # Tamper-evident audit
         try:
             from .audit import append_audit
+
             append_audit(repo.mem_dir, "init", {"author": author_name, "branch": "main"})
         except Exception:
             pass
@@ -139,6 +141,7 @@ class Repository:
         self.config_file.write_text(json.dumps(config, indent=2))
         try:
             from .audit import append_audit
+
             append_audit(self.mem_dir, "config_change", {})
         except Exception:
             pass
@@ -336,6 +339,7 @@ class Repository:
                 ED25519_AVAILABLE,
             )
             from .objects import Tree
+
             tree = Tree.load(self.object_store, tree_hash)
             if tree:
                 blobs = _collect_blob_hashes_from_tree(self.object_store, tree_hash)
@@ -366,6 +370,7 @@ class Repository:
         # Audit
         try:
             from .audit import append_audit
+
             append_audit(self.mem_dir, "commit", {"commit": commit_hash, "message": message})
         except Exception:
             pass
@@ -414,6 +419,7 @@ class Repository:
         # Cryptographic verification: reject if Merkle/signature invalid
         try:
             from .crypto_verify import verify_commit_optional
+
             verify_commit_optional(
                 self.object_store, commit_hash, mem_dir=self.mem_dir, strict=False
             )
@@ -446,6 +452,7 @@ class Repository:
         # Audit
         try:
             from .audit import append_audit
+
             append_audit(self.mem_dir, "checkout", {"ref": ref, "commit": commit_hash})
         except Exception:
             pass

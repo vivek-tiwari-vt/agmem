@@ -288,13 +288,23 @@ class Gardener:
         if self.config.llm_provider and self.config.llm_model:
             try:
                 from .llm import get_provider
-                config = {"llm_provider": self.config.llm_provider, "llm_model": self.config.llm_model}
+
+                config = {
+                    "llm_provider": self.config.llm_provider,
+                    "llm_model": self.config.llm_model,
+                }
                 provider = get_provider(config=config)
                 if provider:
                     return provider.complete(
                         [
-                            {"role": "system", "content": "You are a helpful assistant that summarizes conversation logs into actionable insights."},
-                            {"role": "user", "content": f"Summarize these conversation logs about '{topic}' into 2-3 key insights:\n\n{content[:4000]}"},
+                            {
+                                "role": "system",
+                                "content": "You are a helpful assistant that summarizes conversation logs into actionable insights.",
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Summarize these conversation logs about '{topic}' into 2-3 key insights:\n\n{content[:4000]}",
+                            },
                         ],
                         max_tokens=500,
                     )

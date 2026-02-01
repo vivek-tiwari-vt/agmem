@@ -52,6 +52,7 @@ class GardenCommand:
 
         if getattr(args, "private", False):
             from ..core.privacy_budget import load_budget, spend_epsilon
+
             spent, max_eps, _ = load_budget(repo.mem_dir)
             epsilon_cost = 0.1
             if not spend_epsilon(repo.mem_dir, epsilon_cost):

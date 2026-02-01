@@ -212,12 +212,23 @@ class DaemonCommand:
                 time.sleep(1)
 
                 # Periodic health check (Merkle/signature, optional)
-                if health_check_interval and (time.time() - last_health_check) >= health_check_interval:
+                if (
+                    health_check_interval
+                    and (time.time() - last_health_check) >= health_check_interval
+                ):
                     try:
                         from ..core.crypto_verify import verify_commit, load_public_key
-                        head = repo.refs.get_branch_commit(repo.refs.get_current_branch() or "main") or (repo.refs.get_head() or {}).get("value")
+
+                        head = repo.refs.get_branch_commit(
+                            repo.refs.get_current_branch() or "main"
+                        ) or (repo.refs.get_head() or {}).get("value")
                         if head:
-                            ok, err = verify_commit(repo.object_store, head, load_public_key(repo.mem_dir), mem_dir=repo.mem_dir)
+                            ok, err = verify_commit(
+                                repo.object_store,
+                                head,
+                                load_public_key(repo.mem_dir),
+                                mem_dir=repo.mem_dir,
+                            )
                             if not ok and err and "tampered" in (err or "").lower():
                                 sys.stderr.write(f"Health check: {err}\n")
                     except Exception:

@@ -63,6 +63,7 @@ class MergeCommand:
         if other_commit_hash:
             from ..core.objects import Commit
             from ..core.trust import find_verifying_key, get_trust_level
+
             other_commit = Commit.load(repo.object_store, other_commit_hash)
             if other_commit and other_commit.metadata:
                 key_pem = find_verifying_key(repo.mem_dir, other_commit.metadata)
@@ -85,7 +86,10 @@ class MergeCommand:
                 print(f"  Commit: {result.commit_hash[:8]}")
             try:
                 from ..core.audit import append_audit
-                append_audit(repo.mem_dir, "merge", {"branch": args.branch, "commit": result.commit_hash})
+
+                append_audit(
+                    repo.mem_dir, "merge", {"branch": args.branch, "commit": result.commit_hash}
+                )
             except Exception:
                 pass
             return 0
@@ -96,6 +100,7 @@ class MergeCommand:
                 # Persist conflicts for agmem resolve
                 try:
                     import json
+
                     merge_dir = repo.mem_dir / "merge"
                     merge_dir.mkdir(parents=True, exist_ok=True)
                     conflicts_data = [
@@ -118,6 +123,8 @@ class MergeCommand:
                 for conflict in result.conflicts:
                     print(f"  {conflict.path}")
                 print()
-                print("Resolve conflicts with 'agmem resolve' or edit files and run 'agmem commit'.")
+                print(
+                    "Resolve conflicts with 'agmem resolve' or edit files and run 'agmem commit'."
+                )
 
             return 1

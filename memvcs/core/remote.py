@@ -178,6 +178,7 @@ class Remote:
                 if remote_ch and _valid_object_hash(remote_ch):
                     from .merge import MergeEngine
                     from .repository import Repository
+
                     repo = Repository(self.repo_path)
                     engine = MergeEngine(repo)
                     if not engine.find_common_ancestor(remote_ch, local_ch) == remote_ch:
@@ -229,7 +230,10 @@ class Remote:
 
         try:
             from .audit import append_audit
-            append_audit(self.mem_dir, "push", {"remote": self.name, "branch": branch, "copied": copied})
+
+            append_audit(
+                self.mem_dir, "push", {"remote": self.name, "branch": branch, "copied": copied}
+            )
         except Exception:
             pass
         return f"Pushed {copied} object(s) to {self.name}"
@@ -303,7 +307,10 @@ class Remote:
 
         try:
             from .audit import append_audit
-            append_audit(self.mem_dir, "fetch", {"remote": self.name, "branch": branch, "copied": copied})
+
+            append_audit(
+                self.mem_dir, "fetch", {"remote": self.name, "branch": branch, "copied": copied}
+            )
         except Exception:
             pass
         return f"Fetched {copied} object(s) from {self.name}"

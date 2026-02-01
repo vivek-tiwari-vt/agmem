@@ -57,12 +57,14 @@ class PullCommand:
                 remote_hash = repo.resolve_ref(remote_ref)
                 if remote_hash:
                     from memvcs.core.crypto_verify import verify_commit_optional
+
                     verify_commit_optional(
                         repo.object_store, remote_hash, mem_dir=repo.mem_dir, strict=False
                     )
                     # Trust check: block or require confirmation for untrusted/conditional
                     from memvcs.core.objects import Commit
                     from memvcs.core.trust import find_verifying_key, get_trust_level
+
                     remote_commit = Commit.load(repo.object_store, remote_hash)
                     if remote_commit and remote_commit.metadata:
                         key_pem = find_verifying_key(repo.mem_dir, remote_commit.metadata)
@@ -72,7 +74,9 @@ class PullCommand:
                                 print(f"Pull blocked: remote commit signed by untrusted key.")
                                 return 1
                             if level == "conditional" and not getattr(args, "yes", False):
-                                print("Remote commit from conditionally trusted key. Use --yes to merge.")
+                                print(
+                                    "Remote commit from conditionally trusted key. Use --yes to merge."
+                                )
                                 return 1
                     from memvcs.core.merge import MergeEngine
 

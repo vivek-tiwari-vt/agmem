@@ -9,9 +9,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 
-def prove_keyword_containment(
-    memory_path: Path, keyword: str, output_proof_path: Path
-) -> bool:
+def prove_keyword_containment(memory_path: Path, keyword: str, output_proof_path: Path) -> bool:
     """Prove memory file contains keyword without revealing content. Stub: returns False until zk backend added."""
     return False
 

@@ -261,12 +261,19 @@ class MergeEngine:
         """LLM arbitration: call LLM to resolve contradiction (multi-provider)."""
         try:
             from .llm import get_provider
+
             provider = get_provider()
             if provider:
                 merged = provider.complete(
                     [
-                        {"role": "system", "content": "Resolve the contradiction between two memory versions. Output the merged content that best reflects the combined truth."},
-                        {"role": "user", "content": f"OURS:\n{ours_content}\n\nTHEIRS:\n{theirs_content}"},
+                        {
+                            "role": "system",
+                            "content": "Resolve the contradiction between two memory versions. Output the merged content that best reflects the combined truth.",
+                        },
+                        {
+                            "role": "user",
+                            "content": f"OURS:\n{ours_content}\n\nTHEIRS:\n{theirs_content}",
+                        },
                     ],
                     max_tokens=1000,
                 )
@@ -395,9 +402,13 @@ class MergeEngine:
             if had_conflict:
                 payload = {}
                 if ours_content:
-                    payload["ours_preview"] = ours_content[:300] if len(ours_content) > 300 else ours_content
+                    payload["ours_preview"] = (
+                        ours_content[:300] if len(ours_content) > 300 else ours_content
+                    )
                 if theirs_content:
-                    payload["theirs_preview"] = theirs_content[:300] if len(theirs_content) > 300 else theirs_content
+                    payload["theirs_preview"] = (
+                        theirs_content[:300] if len(theirs_content) > 300 else theirs_content
+                    )
                 conflicts.append(
                     Conflict(
                         path=path,

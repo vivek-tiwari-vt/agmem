@@ -116,6 +116,7 @@ class ResolveCommand:
             resolved += 1
             try:
                 from ..core.audit import append_audit
+
                 append_audit(repo.mem_dir, "resolve", {"path": path, "choice": choice})
             except Exception:
                 pass

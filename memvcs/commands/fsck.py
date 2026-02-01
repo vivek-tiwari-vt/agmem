@@ -216,9 +216,7 @@ class FsckCommand:
             ch = repo.refs.get_branch_commit(branch)
             if not ch:
                 continue
-            ok, err = verify_commit(
-                repo.object_store, ch, public_key_pem=pub, mem_dir=repo.mem_dir
-            )
+            ok, err = verify_commit(repo.object_store, ch, public_key_pem=pub, mem_dir=repo.mem_dir)
             if not ok:
                 issues += 1
                 if verbose:

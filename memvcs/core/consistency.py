@@ -103,12 +103,16 @@ class ConsistencyChecker:
         """Extract triples using LLM (multi-provider)."""
         try:
             from .llm import get_provider
+
             provider = get_provider(provider_name=self.llm_provider)
             if not provider:
                 return []
             text = provider.complete(
                 [
-                    {"role": "system", "content": "Extract factual statements as (subject, predicate, object) triples. One per line, format: SUBJECT | PREDICATE | OBJECT"},
+                    {
+                        "role": "system",
+                        "content": "Extract factual statements as (subject, predicate, object) triples. One per line, format: SUBJECT | PREDICATE | OBJECT",
+                    },
                     {"role": "user", "content": content[:3000]},
                 ],
                 max_tokens=500,

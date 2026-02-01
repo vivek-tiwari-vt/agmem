@@ -32,7 +32,9 @@ class FederatedCommand:
 
         cfg = get_federated_config(repo.root)
         if not cfg:
-            print("Federated collaboration not enabled. Set federated.enabled and coordinator_url in config.")
+            print(
+                "Federated collaboration not enabled. Set federated.enabled and coordinator_url in config."
+            )
             return 1
 
         if args.action == "push":

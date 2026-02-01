@@ -56,6 +56,7 @@ def push_updates(repo_root: Path, summary: Dict[str, Any]) -> str:
     url = cfg["coordinator_url"] + "/push"
     try:
         import urllib.request
+
         req = urllib.request.Request(
             url,
             data=json.dumps(summary).encode(),
@@ -78,6 +79,7 @@ def pull_merged(repo_root: Path) -> Optional[Dict[str, Any]]:
     url = cfg["coordinator_url"] + "/pull"
     try:
         import urllib.request
+
         with urllib.request.urlopen(url, timeout=30) as resp:
             return json.loads(resp.read().decode())
     except Exception:

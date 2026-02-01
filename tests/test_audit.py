@@ -70,7 +70,11 @@ class TestAuditVerify:
             log_path = _log_path(mem_dir)
             lines = log_path.read_text().strip().split("\n")
             # Corrupt second line (change payload)
-            lines[1] = lines[1].split("\t", 1)[0] + "\t" + '{"timestamp":"x","operation":"b","details":{},"prev_hash":"y"}'
+            lines[1] = (
+                lines[1].split("\t", 1)[0]
+                + "\t"
+                + '{"timestamp":"x","operation":"b","details":{},"prev_hash":"y"}'
+            )
             log_path.write_text("\n".join(lines) + "\n")
             valid, first_bad = verify_audit(mem_dir)
             assert valid is False

@@ -19,7 +19,8 @@ class AuditCommand:
     @staticmethod
     def add_arguments(parser: argparse.ArgumentParser):
         parser.add_argument(
-            "-n", "--max",
+            "-n",
+            "--max",
             type=int,
             default=50,
             metavar="N",

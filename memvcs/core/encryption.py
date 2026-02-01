@@ -15,6 +15,7 @@ from typing import Optional, Tuple, Dict, Any, Callable
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+
     ENCRYPTION_AVAILABLE = True
 except ImportError:
     ENCRYPTION_AVAILABLE = False
@@ -145,6 +146,7 @@ def get_key_from_env_or_cache(
     """Get key from env or process cache. Derives key if passphrase in env and config exists."""
     # Module-level cache for session (same process)
     import sys
+
     mod = sys.modules.get("memvcs.core.encryption")
     if mod and getattr(mod, cache_var, None) is not None:
         return getattr(mod, cache_var)

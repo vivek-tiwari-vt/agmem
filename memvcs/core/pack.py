@@ -62,10 +62,13 @@ def reachable_from_refs(mem_dir: Path, store: ObjectStore, gc_prune_days: int = 
 def _collect_from_commit(store: ObjectStore, commit_hash: str) -> Set[str]:
     """Collect all object hashes reachable from a commit."""
     from .remote import _collect_objects_from_commit
+
     return _collect_objects_from_commit(store, commit_hash)
 
 
-def run_gc(mem_dir: Path, store: ObjectStore, gc_prune_days: int = 90, dry_run: bool = False) -> Tuple[int, int]:
+def run_gc(
+    mem_dir: Path, store: ObjectStore, gc_prune_days: int = 90, dry_run: bool = False
+) -> Tuple[int, int]:
     """
     Garbage collect: delete unreachable loose objects.
     Returns (deleted_count, bytes_freed). dry_run: only report, do not delete.

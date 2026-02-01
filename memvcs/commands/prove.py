@@ -18,7 +18,9 @@ class ProveCommand:
 
     @staticmethod
     def add_arguments(parser: argparse.ArgumentParser):
-        parser.add_argument("--memory", "-m", required=True, help="Memory file path (under current/)")
+        parser.add_argument(
+            "--memory", "-m", required=True, help="Memory file path (under current/)"
+        )
         parser.add_argument(
             "--property",
             "-p",

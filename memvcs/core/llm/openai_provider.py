@@ -25,6 +25,7 @@ class OpenAIProvider(LLMProvider):
         **kwargs: Any,
     ) -> str:
         import openai
+
         m = model or self._model
         response = openai.chat.completions.create(
             model=m,

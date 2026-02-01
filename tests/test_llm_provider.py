@@ -34,6 +34,7 @@ class TestOpenAIProviderMocked:
 
     def test_complete_returns_text(self):
         from memvcs.core.llm.openai_provider import OpenAIProvider
+
         provider = OpenAIProvider(model="gpt-3.5-turbo")
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
             with patch("openai.chat.completions.create") as m:
@@ -43,6 +44,7 @@ class TestOpenAIProviderMocked:
 
     def test_complete_mocked_no_network(self):
         from memvcs.core.llm.openai_provider import OpenAIProvider
+
         provider = OpenAIProvider(model="gpt-3.5-turbo")
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
             with patch("openai.chat.completions.create") as m:
