@@ -18,7 +18,7 @@ build/
 .mem/
 
 # Documentation
-docs/
+# docs/
 
 # IDE / editor
 .cursor/
