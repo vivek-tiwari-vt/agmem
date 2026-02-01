@@ -5,6 +5,7 @@ Prove properties of memory (keyword, freshness) without revealing content.
 """
 
 import argparse
+from pathlib import Path
 
 from ..commands.base import require_repo
 from ..core.zk_proofs import prove_keyword_containment, prove_memory_freshness

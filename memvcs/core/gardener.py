@@ -303,7 +303,7 @@ class Gardener:
                             },
                             {
                                 "role": "user",
-                                "content": f"Summarize these conversation logs about '{topic}' into 2-3 key insights:\n\n{content[:4000]}",
+                                "content": f"Summarize these conversation logs about '{cluster.topic}' into 2-3 key insights:\n\n{combined[:4000]}",
                             },
                         ],
                         max_tokens=500,
