@@ -299,18 +299,21 @@ class SchemaValidator:
         required = cls.REQUIRED_FIELDS.get(memory_type, [])
         frontmatter_dict = frontmatter.to_dict()
 
-        for field in required:
-            if field not in frontmatter_dict or frontmatter_dict[field] is None:
-                result.add_error(field, f"Required field '{field}' is missing")
+        for field_name in required:
+            if field_name not in frontmatter_dict or frontmatter_dict[field_name] is None:
+                result.add_error(field_name, f"Required field '{field_name}' is missing")
 
         # Check recommended fields
         recommended = cls.RECOMMENDED_FIELDS.get(memory_type, [])
-        for field in recommended:
-            if field not in frontmatter_dict or frontmatter_dict[field] is None:
+        for field_name in recommended:
+            if field_name not in frontmatter_dict or frontmatter_dict[field_name] is None:
                 if strict:
-                    result.add_error(field, f"Recommended field '{field}' is missing (strict mode)")
+                    result.add_error(
+                        field_name,
+                        f"Recommended field '{field_name}' is missing (strict mode)",
+                    )
                 else:
-                    result.add_warning(field, f"Recommended field '{field}' is missing")
+                    result.add_warning(field_name, f"Recommended field '{field_name}' is missing")
 
         # Validate schema_version format
         if frontmatter.schema_version:

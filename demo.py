@@ -5,16 +5,13 @@ agmem Demo Script
 This script demonstrates the full agmem workflow.
 """
 
-import tempfile
-import shutil
-from pathlib import Path
-
-# Add parent directory to path for imports
 import sys
+import tempfile
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from memvcs.core.repository import Repository
+from memvcs.core.repository import Repository  # noqa: E402
 
 
 def print_section(title):
@@ -114,7 +111,7 @@ def main():
 
         commit_hash = repo.commit("Initial memory: user preferences and coding workflow")
         print(f"Created commit: {commit_hash[:16]}...")
-        print(f"Message: Initial memory: user preferences and coding workflow")
+        print("Message: Initial memory: user preferences and coding workflow")
 
         # Step 5: View log
         print_section("5. View Commit History")

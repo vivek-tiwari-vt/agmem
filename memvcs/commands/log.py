@@ -78,7 +78,7 @@ class LogCommand:
                     dt = datetime.fromisoformat(ts)
                     date_str = dt.strftime("%a %b %d %H:%M:%S %Y")
                     print(f"Date:   {date_str}")
-                except:
+                except Exception:
                     print(f"Date:   {commit['timestamp']}")
 
                 # Message

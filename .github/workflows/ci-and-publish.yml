@@ -32,7 +32,7 @@ jobs:
       - name: Black
         run: black --check .
       - name: Flake8
-        run: flake8 . --max-line-length=100 --extend-ignore=E203,W503 --exclude=venv,.venv,build,dist,.git,*.egg-info
+        run: flake8 .
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
         with:

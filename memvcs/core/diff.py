@@ -99,8 +99,6 @@ class DiffEngine:
             return diff_lines
 
         # Use unified diff style
-        max_lines = max(len(old_lines), len(new_lines))
-
         i, j = 0, 0
         while i < len(old_lines) or j < len(new_lines):
             if i < len(old_lines) and j < len(new_lines):
@@ -117,8 +115,8 @@ class DiffEngine:
                     for k in range(j + 1, min(j + 5, len(new_lines))):
                         if new_lines[k].rstrip() == old_line:
                             # Lines were added
-                            for l in range(j, k):
-                                diff_lines.append(f"+ {new_lines[l].rstrip()}")
+                            for idx in range(j, k):
+                                diff_lines.append(f"+ {new_lines[idx].rstrip()}")
                             j = k
                             found = True
                             break

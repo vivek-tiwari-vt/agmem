@@ -59,7 +59,7 @@ class DaemonCommand:
         elif args.action == "status":
             return DaemonCommand._status(pid_file)
         elif args.action == "run":
-            return DaemonCommand._run(repo, args.debounce, distill=args.distill)
+            return DaemonCommand._run(repo, args.debounce, pid_file=pid_file, distill=args.distill)
 
         return 1
 
@@ -153,7 +153,7 @@ class DaemonCommand:
             return 0
 
     @staticmethod
-    def _run(repo, debounce: int, pid_file: Path = None) -> int:
+    def _run(repo, debounce: int, pid_file: Path = None, distill: bool = False) -> int:
         """Run daemon in foreground."""
         try:
             from watchdog.observers import Observer

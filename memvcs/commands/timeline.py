@@ -94,7 +94,6 @@ class TimelineCommand:
             print(f"    {h['author']}")
             print(f"    {h['message'][:70]}")
             if i > 0 and history[i - 1]["content"] != h["content"]:
-                engine = DiffEngine(repo.object_store)
                 prev_content = history[i - 1]["content"].encode()
                 curr_content = h["content"].encode()
                 # Simple line diff

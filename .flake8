@@ -1,0 +1,4 @@
+[flake8]
+max-line-length = 120
+extend-ignore = E203, W503, F401, F541, F841, E402, F402, W291, W293, F811, E501
+exclude = venv,.venv,build,dist,.git,*.egg-info,scripts

@@ -6,11 +6,11 @@ Requires: pip install agmem[vector]
 """
 
 import logging
+import struct
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .constants import MEMORY_TYPES
-import struct
-from pathlib import Path
 
 logger = logging.getLogger("agmem.vector_store")
 
