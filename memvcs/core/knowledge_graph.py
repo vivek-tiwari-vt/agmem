@@ -326,7 +326,9 @@ class KnowledgeGraphBuilder:
                 common = file_entities.get(path1, set()) & file_entities.get(path2, set())
                 if common:
                     w = min(1.0, 0.3 + 0.1 * len(common))
-                    edge = GraphEdge(source=path1, target=path2, edge_type="co_occurrence", weight=w)
+                    edge = GraphEdge(
+                        source=path1, target=path2, edge_type="co_occurrence", weight=w
+                    )
                     edges.append(edge)
                     if self._graph is not None:
                         self._graph.add_edge(path1, path2, type="co_occurrence", weight=w)

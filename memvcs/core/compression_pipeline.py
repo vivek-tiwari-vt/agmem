@@ -18,7 +18,9 @@ DEDUP_HASH_ALGO = "sha256"
 TIER_HOT_DAYS = 7
 
 
-def chunk_by_size(text: str, size: int = CHUNK_SIZE_DEFAULT, overlap: int = CHUNK_OVERLAP) -> List[str]:
+def chunk_by_size(
+    text: str, size: int = CHUNK_SIZE_DEFAULT, overlap: int = CHUNK_OVERLAP
+) -> List[str]:
     """Split text into chunks by character size with optional overlap."""
     if not text or size <= 0:
         return []
@@ -37,7 +39,7 @@ def chunk_by_sentences(text: str, max_chunk_chars: int = 512) -> List[str]:
     """Split text into chunks by sentence boundaries, up to max_chunk_chars per chunk."""
     if not text:
         return []
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+    sentences = re.split(r"(?<=[.!?])\s+", text)
     chunks = []
     current = []
     current_len = 0
@@ -94,7 +96,10 @@ def dedup_by_similarity_threshold(
         embeddings = vector_store.embed(items)
         kept = [items[0]]
         for i in range(1, len(items)):
-            sims = [vector_store.similarity(embeddings[i], vector_store.embed([kept[j]])[0]) for j in range(len(kept))]
+            sims = [
+                vector_store.similarity(embeddings[i], vector_store.embed([kept[j]])[0])
+                for j in range(len(kept))
+            ]
             if not any(s >= threshold for s in sims):
                 kept.append(items[i])
         return kept
@@ -144,12 +149,15 @@ class CompressionPipeline:
         if self.dedup_hash:
             chunk_tuples = dedup_by_hash(chunks)
         else:
-            chunk_tuples = [(c, hashlib.new(DEDUP_HASH_ALGO, c.encode()).hexdigest()) for c in chunks]
+            chunk_tuples = [
+                (c, hashlib.new(DEDUP_HASH_ALGO, c.encode()).hexdigest()) for c in chunks
+            ]
         tier = None
         if self.tier_by_recency and path and path.exists():
             try:
                 mtime = path.stat().st_mtime
                 from datetime import datetime, timezone
+
                 age_days = (datetime.now(timezone.utc).timestamp() - mtime) / 86400
                 tier = "hot" if age_days <= TIER_HOT_DAYS else "cold"
             except Exception:

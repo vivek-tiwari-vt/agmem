@@ -97,10 +97,14 @@ class TestGardenerDistillerDPIntegration:
                     self.refs = None
 
             fake_repo = FakeRepo(root)
-            config = GardenerConfig(threshold=2, auto_commit=False, use_dp=True, dp_epsilon=0.1, dp_delta=1e-5)
+            config = GardenerConfig(
+                threshold=2, auto_commit=False, use_dp=True, dp_epsilon=0.1, dp_delta=1e-5
+            )
             gardener = Gardener(fake_repo, config)
 
-            with patch("memvcs.core.privacy_budget.add_noise", side_effect=lambda v, s, e, d: v + 1):
+            with patch(
+                "memvcs.core.privacy_budget.add_noise", side_effect=lambda v, s, e, d: v + 1
+            ):
                 result = gardener.run(force=True)
             assert result.success
             assert result.clusters_found >= 0
@@ -125,13 +129,25 @@ class TestGardenerDistillerDPIntegration:
                     self.current_dir = r / "current"
                     self.mem_dir = r / ".mem"
                     self.object_store = None
-                    self.refs = type("R", (), {"branch_exists": lambda n: True, "create_branch": lambda n: None, "get_current_branch": lambda: "main"})()
+                    self.refs = type(
+                        "R",
+                        (),
+                        {
+                            "branch_exists": lambda n: True,
+                            "create_branch": lambda n: None,
+                            "get_current_branch": lambda: "main",
+                        },
+                    )()
 
             fake_repo = FakeRepo(root)
-            config = DistillerConfig(create_safety_branch=False, use_dp=True, dp_epsilon=0.1, dp_delta=1e-5)
+            config = DistillerConfig(
+                create_safety_branch=False, use_dp=True, dp_epsilon=0.1, dp_delta=1e-5
+            )
             distiller = Distiller(fake_repo, config)
 
-            with patch("memvcs.core.privacy_budget.add_noise", side_effect=lambda v, s, e, d: v + 0.5):
+            with patch(
+                "memvcs.core.privacy_budget.add_noise", side_effect=lambda v, s, e, d: v + 0.5
+            ):
                 result = distiller.run()
             assert result.success
             assert result.facts_extracted >= 0

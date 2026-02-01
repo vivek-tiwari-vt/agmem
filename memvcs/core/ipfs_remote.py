@@ -103,8 +103,7 @@ def _add_to_ipfs_gateway(bundle: bytes, gateway_url: str) -> Optional[str]:
     body = (
         b"--" + boundary.encode() + b"\r\n"
         b'Content-Disposition: form-data; name="file"; filename="agmem-bundle.bin"\r\n'
-        b"Content-Type: application/octet-stream\r\n\r\n"
-        + bundle + b"\r\n"
+        b"Content-Type: application/octet-stream\r\n\r\n" + bundle + b"\r\n"
         b"--" + boundary.encode() + b"--\r\n"
     )
     try:

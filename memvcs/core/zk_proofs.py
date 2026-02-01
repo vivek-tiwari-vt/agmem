@@ -79,6 +79,7 @@ def prove_memory_freshness(
         stat = memory_path.stat()
         ts = stat.st_mtime
         from datetime import datetime, timezone
+
         iso_ts = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
     except Exception:
         return False
@@ -150,6 +151,7 @@ def verify_proof(proof_path: Path, statement_type: str, **kwargs: Any) -> bool:
             return False
         try:
             from datetime import datetime
+
             after_dt = datetime.fromisoformat(after_ts.replace("Z", "+00:00"))
             ts_dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
             return ts_dt >= after_dt

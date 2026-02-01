@@ -208,6 +208,7 @@ class DaemonCommand:
         health_check_interval = 3600  # default 1 hour
         try:
             from ..core.config_loader import load_agmem_config
+
             config = load_agmem_config(repo.root)
             daemon_cfg = config.get("daemon") or {}
             health_check_interval = int(daemon_cfg.get("health_check_interval_seconds", 3600))

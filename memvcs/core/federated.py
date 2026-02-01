@@ -48,6 +48,7 @@ def _extract_topic_from_md(path: Path, content: str) -> str:
         if end > 0:
             try:
                 import yaml
+
                 fm = yaml.safe_load(content[3:end])
                 if isinstance(fm, dict):
                     tags = fm.get("tags", [])
@@ -62,7 +63,11 @@ def _extract_topic_from_md(path: Path, content: str) -> str:
 
 
 def produce_local_summary(
-    repo_root: Path, memory_types: List[str], use_dp: bool = False, dp_epsilon: float = 0.1, dp_delta: float = 1e-5
+    repo_root: Path,
+    memory_types: List[str],
+    use_dp: bool = False,
+    dp_epsilon: float = 0.1,
+    dp_delta: float = 1e-5,
 ) -> Dict[str, Any]:
     """
     Produce a local summary from episodic/semantic data (no raw content).
@@ -101,10 +106,15 @@ def produce_local_summary(
 
     if use_dp and dp_epsilon and dp_delta:
         from .privacy_budget import add_noise
+
         for mtype in summary["topics"]:
             raw = summary["topics"][mtype]
-            summary["topics"][mtype] = max(0, int(round(add_noise(float(raw), 1.0, dp_epsilon, dp_delta))))
-        summary["fact_count"] = max(0, int(round(add_noise(float(summary["fact_count"]), 1.0, dp_epsilon, dp_delta))))
+            summary["topics"][mtype] = max(
+                0, int(round(add_noise(float(raw), 1.0, dp_epsilon, dp_delta)))
+            )
+        summary["fact_count"] = max(
+            0, int(round(add_noise(float(summary["fact_count"]), 1.0, dp_epsilon, dp_delta)))
+        )
 
     return summary
 

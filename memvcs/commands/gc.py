@@ -62,5 +62,7 @@ class GcCommand:
                 dry_run=False,
             )
             if packed > 0:
-                print(f"Packed {packed} object(s) into pack file ({repack_freed} bytes from loose).")
+                print(
+                    f"Packed {packed} object(s) into pack file ({repack_freed} bytes from loose)."
+                )
         return 0

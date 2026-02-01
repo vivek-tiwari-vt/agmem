@@ -110,6 +110,7 @@ class ObjectStore:
         # Try pack file when loose object missing
         try:
             from .pack import retrieve_from_pack
+
             result = retrieve_from_pack(self.objects_dir, hash_id, expected_type=obj_type)
             if result is not None:
                 return result[1]
@@ -126,6 +127,7 @@ class ObjectStore:
             return True
         try:
             from .pack import retrieve_from_pack
+
             return retrieve_from_pack(self.objects_dir, hash_id, expected_type=obj_type) is not None
         except Exception:
             return False

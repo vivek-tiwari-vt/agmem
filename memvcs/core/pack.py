@@ -21,7 +21,12 @@ OBJ_TYPE_BLOB = 1
 OBJ_TYPE_TREE = 2
 OBJ_TYPE_COMMIT = 3
 OBJ_TYPE_TAG = 4
-TYPE_TO_BYTE = {"blob": OBJ_TYPE_BLOB, "tree": OBJ_TYPE_TREE, "commit": OBJ_TYPE_COMMIT, "tag": OBJ_TYPE_TAG}
+TYPE_TO_BYTE = {
+    "blob": OBJ_TYPE_BLOB,
+    "tree": OBJ_TYPE_TREE,
+    "commit": OBJ_TYPE_COMMIT,
+    "tag": OBJ_TYPE_TAG,
+}
 BYTE_TO_TYPE = {v: k for k, v in TYPE_TO_BYTE.items()}
 
 
@@ -152,7 +157,12 @@ def write_pack(
     if not index_entries:
         raise ValueError("No objects to pack")
 
-    pack_content = PACK_MAGIC + struct.pack(">I", PACK_VERSION) + struct.pack(">I", len(index_entries)) + bytes(pack_body)
+    pack_content = (
+        PACK_MAGIC
+        + struct.pack(">I", PACK_VERSION)
+        + struct.pack(">I", len(index_entries))
+        + bytes(pack_body)
+    )
     pack_hash = hashlib.sha256(pack_content).digest()
     pack_content += pack_hash
 
@@ -160,7 +170,9 @@ def write_pack(
     pack_path = pack_d / pack_name
     pack_path.write_bytes(pack_content)
 
-    index_content = bytearray(IDX_MAGIC + struct.pack(">I", IDX_VERSION) + struct.pack(">I", len(index_entries)))
+    index_content = bytearray(
+        IDX_MAGIC + struct.pack(">I", IDX_VERSION) + struct.pack(">I", len(index_entries))
+    )
     for hash_id, obj_type, off in index_entries:
         index_content.extend(bytes.fromhex(hash_id))
         index_content.append(TYPE_TO_BYTE[obj_type])
@@ -184,7 +196,9 @@ def _find_pack_index(objects_dir: Path) -> Optional[Path]:
     return None
 
 
-def retrieve_from_pack(objects_dir: Path, hash_id: str, expected_type: Optional[str] = None) -> Optional[Tuple[str, bytes]]:
+def retrieve_from_pack(
+    objects_dir: Path, hash_id: str, expected_type: Optional[str] = None
+) -> Optional[Tuple[str, bytes]]:
     """
     Retrieve object from pack by hash. Returns (obj_type, content) or None.
     If expected_type is set, only return if pack type matches.

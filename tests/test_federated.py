@@ -20,7 +20,9 @@ class TestProduceLocalSummary:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             (root / "current" / "semantic").mkdir(parents=True)
-            (root / "current" / "semantic" / "prefs.md").write_text("# User prefs\n- prefers dark mode")
+            (root / "current" / "semantic" / "prefs.md").write_text(
+                "# User prefs\n- prefers dark mode"
+            )
             summary = produce_local_summary(root, ["semantic"])
             assert "topics" in summary
             assert summary["topics"].get("semantic", 0) >= 1
@@ -34,7 +36,9 @@ class TestProduceLocalSummary:
             for i in range(3):
                 (root / "current" / "episodic" / f"e{i}.md").write_text(f"episode {i}")
             raw = produce_local_summary(root, ["episodic"], use_dp=False)
-            noised = produce_local_summary(root, ["episodic"], use_dp=True, dp_epsilon=0.5, dp_delta=1e-5)
+            noised = produce_local_summary(
+                root, ["episodic"], use_dp=True, dp_epsilon=0.5, dp_delta=1e-5
+            )
             assert "topics" in noised
             assert "fact_count" in noised
 

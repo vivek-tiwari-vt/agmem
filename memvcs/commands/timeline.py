@@ -54,6 +54,7 @@ class TimelineCommand:
         if from_ts and to_ts:
             try:
                 from ..core.temporal_index import TemporalIndex
+
                 ti = TemporalIndex(repo.mem_dir, repo.object_store)
                 range_entries = ti.range_query(from_ts, to_ts)
                 commits_in_range = {ch for _, ch in range_entries}

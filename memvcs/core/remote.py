@@ -70,6 +70,7 @@ def _collect_objects_from_commit(store: ObjectStore, commit_hash: str) -> Set[st
 def _read_object_from_adapter(adapter: Any, hash_id: str) -> Optional[tuple]:
     """Read object from storage adapter. Returns (obj_type, content_bytes) or None."""
     import zlib
+
     for obj_type in ["commit", "tree", "blob", "tag"]:
         rel = f".mem/objects/{obj_type}/{hash_id[:2]}/{hash_id[2:]}"
         if not adapter.exists(rel):
@@ -78,7 +79,7 @@ def _read_object_from_adapter(adapter: Any, hash_id: str) -> Optional[tuple]:
             raw = adapter.read_file(rel)
             full = zlib.decompress(raw)
             null_idx = full.index(b"\0")
-            content = full[null_idx + 1:]
+            content = full[null_idx + 1 :]
             return (obj_type, content)
         except Exception:
             continue
@@ -240,7 +241,10 @@ class Remote:
                 adapter.write_file(f".mem/refs/tags/{t}", (ch + "\n").encode())
         try:
             from .audit import append_audit
-            append_audit(self.mem_dir, "push", {"remote": self.name, "branch": branch, "copied": copied})
+
+            append_audit(
+                self.mem_dir, "push", {"remote": self.name, "branch": branch, "copied": copied}
+            )
         except Exception:
             pass
         return f"Pushed {copied} object(s) to {self.name}"
@@ -290,7 +294,10 @@ class Remote:
                     break
         try:
             from .audit import append_audit
-            append_audit(self.mem_dir, "fetch", {"remote": self.name, "branch": branch, "copied": copied})
+
+            append_audit(
+                self.mem_dir, "fetch", {"remote": self.name, "branch": branch, "copied": copied}
+            )
         except Exception:
             pass
         return f"Fetched {copied} object(s) from {self.name}"
@@ -308,6 +315,7 @@ class Remote:
             try:
                 from .storage import get_adapter
                 from .storage.base import LockError
+
                 adapter = get_adapter(url, self._config)
                 lock_name = "agmem-push"
                 adapter.acquire_lock(lock_name, 30)
@@ -423,6 +431,7 @@ class Remote:
             try:
                 from .storage import get_adapter
                 from .storage.base import LockError
+
                 adapter = get_adapter(url, self._config)
                 lock_name = "agmem-fetch"
                 adapter.acquire_lock(lock_name, 30)

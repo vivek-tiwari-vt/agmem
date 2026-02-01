@@ -164,9 +164,16 @@ class Distiller:
             out_path = self.target_dir / f"consolidated-{ts}.md"
 
         confidence_score = self.config.extraction_confidence_threshold
-        if self.config.use_dp and self.config.dp_epsilon is not None and self.config.dp_delta is not None:
+        if (
+            self.config.use_dp
+            and self.config.dp_epsilon is not None
+            and self.config.dp_delta is not None
+        ):
             from .privacy_budget import add_noise
-            confidence_score = add_noise(confidence_score, 0.1, self.config.dp_epsilon, self.config.dp_delta)
+
+            confidence_score = add_noise(
+                confidence_score, 0.1, self.config.dp_epsilon, self.config.dp_delta
+            )
             confidence_score = max(0.0, min(1.0, confidence_score))
         frontmatter = {
             "schema_version": "1.0",
@@ -277,12 +284,53 @@ class Distiller:
         clusters_processed = len(clusters)
         facts_extracted = facts_count
         episodes_archived = archived
-        if self.config.use_dp and self.config.dp_epsilon is not None and self.config.dp_delta is not None:
+        if (
+            self.config.use_dp
+            and self.config.dp_epsilon is not None
+            and self.config.dp_delta is not None
+        ):
             from .privacy_budget import add_noise
+
             sensitivity = 1.0
-            clusters_processed = max(0, int(round(add_noise(float(clusters_processed), sensitivity, self.config.dp_epsilon, self.config.dp_delta))))
-            facts_extracted = max(0, int(round(add_noise(float(facts_extracted), sensitivity, self.config.dp_epsilon, self.config.dp_delta))))
-            episodes_archived = max(0, int(round(add_noise(float(episodes_archived), sensitivity, self.config.dp_epsilon, self.config.dp_delta))))
+            clusters_processed = max(
+                0,
+                int(
+                    round(
+                        add_noise(
+                            float(clusters_processed),
+                            sensitivity,
+                            self.config.dp_epsilon,
+                            self.config.dp_delta,
+                        )
+                    )
+                ),
+            )
+            facts_extracted = max(
+                0,
+                int(
+                    round(
+                        add_noise(
+                            float(facts_extracted),
+                            sensitivity,
+                            self.config.dp_epsilon,
+                            self.config.dp_delta,
+                        )
+                    )
+                ),
+            )
+            episodes_archived = max(
+                0,
+                int(
+                    round(
+                        add_noise(
+                            float(episodes_archived),
+                            sensitivity,
+                            self.config.dp_epsilon,
+                            self.config.dp_delta,
+                        )
+                    )
+                ),
+            )
 
         return DistillerResult(
             success=True,
