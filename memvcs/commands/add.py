@@ -198,6 +198,11 @@ class AddCommand:
                 print(f"Rejected {rejected_count} file(s) - use --force to override")
             if staged_count > 0:
                 print("Run 'agmem commit -m \"message\"' to save snapshot")
+                try:
+                    from ..core.audit import append_audit
+                    append_audit(repo.mem_dir, "add", {"staged_count": staged_count})
+                except Exception:
+                    pass
         else:
             print("No files staged")
 

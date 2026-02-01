@@ -164,6 +164,27 @@ class Remote:
         refs = RefsManager(self.mem_dir)
         store = ObjectStore(self.objects_dir)
 
+        # Push conflict detection: remote tip must be ancestor of local tip (non-fast-forward reject)
+        remote_heads = remote_refs / "heads"
+        for b in refs.list_branches():
+            if branch and b != branch:
+                continue
+            local_ch = refs.get_branch_commit(b)
+            if not local_ch:
+                continue
+            remote_branch_file = remote_heads / b
+            if remote_branch_file.exists():
+                remote_ch = remote_branch_file.read_text().strip()
+                if remote_ch and _valid_object_hash(remote_ch):
+                    from .merge import MergeEngine
+                    from .repository import Repository
+                    repo = Repository(self.repo_path)
+                    engine = MergeEngine(repo)
+                    if not engine.find_common_ancestor(remote_ch, local_ch) == remote_ch:
+                        raise ValueError(
+                            "Push rejected: remote has diverged. Pull and merge first."
+                        )
+
         # Collect objects to push
         to_push = set()
         for b in refs.list_branches():
@@ -206,6 +227,11 @@ class Remote:
                 (remote_tags_dir / t).parent.mkdir(parents=True, exist_ok=True)
                 (remote_tags_dir / t).write_text(ch + "\n")
 
+        try:
+            from .audit import append_audit
+            append_audit(self.mem_dir, "push", {"remote": self.name, "branch": branch, "copied": copied})
+        except Exception:
+            pass
         return f"Pushed {copied} object(s) to {self.name}"
 
     def fetch(self, branch: Optional[str] = None) -> str:
@@ -275,4 +301,9 @@ class Remote:
                     if ch:
                         refs.create_tag(tag_name, ch)
 
+        try:
+            from .audit import append_audit
+            append_audit(self.mem_dir, "fetch", {"remote": self.name, "branch": branch, "copied": copied})
+        except Exception:
+            pass
         return f"Fetched {copied} object(s) from {self.name}"

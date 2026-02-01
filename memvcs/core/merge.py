@@ -33,6 +33,8 @@ class Conflict:
     ours_content: Optional[str]
     theirs_content: Optional[str]
     message: str
+    memory_type: Optional[str] = None  # episodic, semantic, procedural
+    payload: Optional[Dict[str, Any]] = None  # type-specific (e.g. fact strings, step diffs)
 
 
 @dataclass
@@ -256,31 +258,24 @@ class MergeEngine:
         ours_content: Optional[str],
         theirs_content: Optional[str],
     ) -> Tuple[str, bool]:
-        """LLM arbitration: call LLM to resolve contradiction."""
+        """LLM arbitration: call LLM to resolve contradiction (multi-provider)."""
         try:
-            import openai
-
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Resolve the contradiction between two memory versions. "
-                        "Output the merged content that best reflects the combined truth.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"OURS:\n{ours_content}\n\nTHEIRS:\n{theirs_content}",
-                    },
-                ],
-                max_tokens=1000,
-            )
-            merged = response.choices[0].message.content.strip()
-            return merged, False
+            from .llm import get_provider
+            provider = get_provider()
+            if provider:
+                merged = provider.complete(
+                    [
+                        {"role": "system", "content": "Resolve the contradiction between two memory versions. Output the merged content that best reflects the combined truth."},
+                        {"role": "user", "content": f"OURS:\n{ours_content}\n\nTHEIRS:\n{theirs_content}"},
+                    ],
+                    max_tokens=1000,
+                )
+                return (merged or "").strip(), False
         except Exception:
-            # Fallback to conflict markers
-            merged = f"<<<<<<< OURS\n{ours_content}\n=======\n{theirs_content}\n>>>>>>> THEIRS"
-            return merged, True
+            pass
+        # Fallback to conflict markers
+        merged = f"<<<<<<< OURS\n{ours_content}\n=======\n{theirs_content}\n>>>>>>> THEIRS"
+        return merged, True
 
     def merge_procedural(
         self,
@@ -398,6 +393,11 @@ class MergeEngine:
 
             # Record conflict if any
             if had_conflict:
+                payload = {}
+                if ours_content:
+                    payload["ours_preview"] = ours_content[:300] if len(ours_content) > 300 else ours_content
+                if theirs_content:
+                    payload["theirs_preview"] = theirs_content[:300] if len(theirs_content) > 300 else theirs_content
                 conflicts.append(
                     Conflict(
                         path=path,
@@ -405,6 +405,8 @@ class MergeEngine:
                         ours_content=ours_content,
                         theirs_content=theirs_content,
                         message=f"{strategy.value} merge conflict in {path}",
+                        memory_type=strategy.value,
+                        payload=payload or None,
                     )
                 )
 

@@ -284,36 +284,25 @@ class Gardener:
 
         combined = "\n---\n".join(contents)
 
-        # Try LLM summarization
-        if self.config.llm_provider == "openai" and self.config.llm_model:
+        # Try LLM summarization (multi-provider)
+        if self.config.llm_provider and self.config.llm_model:
             try:
-                return self._summarize_with_openai(combined, cluster.topic)
+                from .llm import get_provider
+                config = {"llm_provider": self.config.llm_provider, "llm_model": self.config.llm_model}
+                provider = get_provider(config=config)
+                if provider:
+                    return provider.complete(
+                        [
+                            {"role": "system", "content": "You are a helpful assistant that summarizes conversation logs into actionable insights."},
+                            {"role": "user", "content": f"Summarize these conversation logs about '{topic}' into 2-3 key insights:\n\n{content[:4000]}"},
+                        ],
+                        max_tokens=500,
+                    )
             except Exception:
                 pass
 
         # Fall back to simple summary
         return self._simple_summary(cluster, contents)
-
-    def _summarize_with_openai(self, content: str, topic: str) -> str:
-        """Summarize using OpenAI API."""
-        import openai
-
-        response = openai.chat.completions.create(
-            model=self.config.llm_model or "gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant that summarizes conversation logs into actionable insights.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Summarize these conversation logs about '{topic}' into 2-3 key insights:\n\n{content[:4000]}",
-                },
-            ],
-            max_tokens=500,
-        )
-
-        return response.choices[0].message.content
 
     def _simple_summary(self, cluster: EpisodeCluster, contents: List[str]) -> str:
         """Generate a simple summary without LLM."""

@@ -110,3 +110,12 @@ class TemporalIndex:
         if idx == 0:
             return None  # All commits are after the requested time
         return timeline[idx - 1][1]
+
+    def range_query(self, start_str: str, end_str: str) -> List[Tuple[datetime, str]]:
+        """Return (timestamp, commit_hash) entries in [start, end]. For range queries."""
+        start_dt = _parse_iso_timestamp(start_str)
+        end_dt = _parse_iso_timestamp(end_str)
+        if not start_dt or not end_dt:
+            return []
+        timeline = self._build_commit_timeline()
+        return [(t, h) for t, h in timeline if start_dt <= t <= end_dt]

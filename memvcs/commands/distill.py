@@ -41,12 +41,27 @@ class DistillCommand:
             action="store_true",
             help="Do not create safety branch",
         )
+        parser.add_argument(
+            "--private",
+            action="store_true",
+            help="Use differential privacy (spend epsilon from budget)",
+        )
 
     @staticmethod
     def execute(args) -> int:
         repo, code = require_repo()
         if code != 0:
             return code
+
+        if getattr(args, "private", False):
+            from ..core.privacy_budget import load_budget, spend_epsilon
+            spent, max_eps, _ = load_budget(repo.mem_dir)
+            epsilon_cost = 0.1
+            if not spend_epsilon(repo.mem_dir, epsilon_cost):
+                print(f"Privacy budget exceeded (spent {spent:.2f}, max {max_eps}).")
+                return 1
+            if spent + epsilon_cost > max_eps * 0.8:
+                print(f"Privacy budget low: {spent + epsilon_cost:.2f}/{max_eps}")
 
         config = DistillerConfig(
             source_dir=args.source,

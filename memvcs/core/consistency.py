@@ -100,23 +100,19 @@ class ConsistencyChecker:
         return triples
 
     def _extract_triples_llm(self, content: str, source: str) -> List[Triple]:
-        """Extract triples using LLM."""
+        """Extract triples using LLM (multi-provider)."""
         try:
-            import openai
-
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Extract factual statements as (subject, predicate, object) triples. "
-                        "One per line, format: SUBJECT | PREDICATE | OBJECT",
-                    },
+            from .llm import get_provider
+            provider = get_provider(provider_name=self.llm_provider)
+            if not provider:
+                return []
+            text = provider.complete(
+                [
+                    {"role": "system", "content": "Extract factual statements as (subject, predicate, object) triples. One per line, format: SUBJECT | PREDICATE | OBJECT"},
                     {"role": "user", "content": content[:3000]},
                 ],
                 max_tokens=500,
             )
-            text = response.choices[0].message.content
             triples = []
             for i, line in enumerate(text.splitlines(), 1):
                 if "|" in line:
@@ -138,7 +134,7 @@ class ConsistencyChecker:
 
     def extract_triples(self, content: str, source: str, use_llm: bool = False) -> List[Triple]:
         """Extract triples from content."""
-        if use_llm and self.llm_provider == "openai":
+        if use_llm and self.llm_provider:
             t = self._extract_triples_llm(content, source)
             if t:
                 return t

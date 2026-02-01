@@ -28,10 +28,23 @@ agmem solves all of these problems with a familiar Git-like interface.
 - ✅ **Branch/tag names with `/`** — Git-style refs: `feature/test`, `releases/v1` (path-validated)
 - ✅ **Content-addressable storage** — SHA-256 deduplication like Git
 - ✅ **Memory-type-aware merging** — Episodic append, semantic consolidate, procedural prefer-new
-- ✅ **Remote (file://)** — `clone`, `push`, `pull`, `remote`; pull merges into current branch
+- ✅ **Remote (file://)** — `clone`, `push`, `pull`, `remote`; pull merges into current branch; push conflict detection (non–fast-forward reject)
 - ✅ **Search** — Semantic with `agmem[vector]`, or plain text over `current/` when vector deps missing
 - ✅ **Knowledge graph** — `agmem graph` from wikilinks/tags; `--no-similarity`, `--format d3`, `--serve` (optional `agmem[web]`)
-- ✅ **Integrity** — `agmem fsck`; path/ref/hash validation throughout (no path traversal)
+- ✅ **Integrity** — `agmem fsck` (objects, refs, vector store, Merkle/signature); `agmem verify --crypto`; path/ref/hash validation (no path traversal)
+- ✅ **Cryptographic commit verification** — Merkle tree over blobs; Ed25519 signing of root; verify on checkout, pull, `verify`, `fsck`; Merkle proofs for single-blob verification
+- ✅ **Encryption at rest** — Optional AES-256-GCM with Argon2id key derivation; hash-then-encrypt preserves deduplication
+- ✅ **Tamper-evident audit trail** — Append-only hash-chained log (init, add, commit, checkout, merge, push, pull, config); `agmem audit` and `agmem audit --verify`
+- ✅ **Multi-agent trust** — Trust store (full / conditional / untrusted) per public key; applied on pull/merge; clone copies remote keys
+- ✅ **Conflict resolution** — `agmem resolve` with ours/theirs/both; conflicts persisted in `.mem/merge/`; path-safe
+- ✅ **Differential privacy** — Epsilon/delta budget in `.mem/privacy_budget.json`; `--private` on `agmem distill` and `agmem garden` when enabled
+- ✅ **Pack files & GC** — `agmem gc` (reachable from refs, prune loose, optional repack); pack format and index in core
+- ✅ **Multi-provider LLM** — OpenAI and Anthropic via `memvcs.core.llm`; config/repo or env; used by gardener, distiller, consistency, merge
+- ✅ **Temporal querying** — Point-in-time and range queries in temporal index; frontmatter timestamps
+- ✅ **Federated collaboration** — `agmem federated push|pull` (stub) for coordinator-based summary sharing
+- ✅ **Zero-knowledge proofs** — `agmem prove` (stub) for keyword containment and memory freshness
+- ✅ **Daemon health** — Periodic Merkle verification in daemon loop; safe auto-remediation hooks
+- ✅ **GPU acceleration** — Vector store detects GPU for embedding model when available
 - ✅ **Optional** — `serve`, `daemon` (watch + auto-commit), `garden` (episode archival), MCP server; install extras as needed
 
 ## Quick Start
@@ -150,12 +163,18 @@ All commands are listed below. Highlights: **`agmem blame <file>`** (who changed
 
 | Command | Description |
 |---------|-------------|
-| `agmem clone <url> [dir]` | Clone repo (file:// URLs); path-validated |
+| `agmem clone <url> [dir]` | Clone repo (file:// URLs); path-validated; copies remote public keys |
 | `agmem remote add <name> <url>` | Add remote |
 | `agmem remote show` | List remotes |
-| `agmem push <remote> <branch>` | Push branch (refs validated) |
-| `agmem pull [--remote <name>] [--branch <b>]` | Fetch and merge into current branch |
-| `agmem fsck` | Check objects, refs, optional vector store |
+| `agmem push <remote> <branch>` | Push branch (refs validated); rejects non–fast-forward |
+| `agmem pull [--remote <name>] [--branch <b>]` | Fetch and merge into current branch; optional crypto/trust checks |
+| `agmem fsck` | Check objects, refs, optional vector store, Merkle roots and signatures |
+| `agmem verify [ref]` | Belief consistency (contradictions); use `--crypto` to verify commit Merkle/signature |
+| `agmem audit [--verify] [--max n]` | Show tamper-evident audit log; `--verify` checks hash chain |
+| `agmem resolve [path]` | Resolve merge conflicts (ours/theirs/both); path under `current/` |
+| `agmem gc [--dry-run] [--prune-days n]` | Garbage collection: delete unreachable loose objects; optional repack |
+| `agmem prove --memory <path> --property keyword\|freshness --value <v> [-o out]` | Generate ZK proofs (stub) |
+| `agmem federated push\|pull` | Federated collaboration (stub; requires coordinator in config) |
 
 ### Optional (install extras)
 
@@ -224,7 +243,81 @@ Configure in `.mem/config.json` (e.g. `archive_dir`, consolidation thresholds). 
 agmem fsck
 ```
 
-Verifies objects, refs, and (if installed) the vector store. Run after cloning or if something looks wrong.
+Verifies objects, refs, and (if installed) the vector store. When commit metadata includes `merkle_root` and optionally `signature`, fsck also runs cryptographic verification. Run after cloning or if something looks wrong.
+
+---
+
+## Security, trust & advanced features
+
+The following 18 capabilities are implemented (or stubbed) per the agmem features implementation plan. They are grouped by tier.
+
+### Tier 1 — Security and trust
+
+| # | Feature | Description |
+|---|---------|-------------|
+| **1** | **Cryptographic commit verification** | Merkle tree over commit blobs; Ed25519 signing of Merkle root; verification on checkout, pull, `agmem verify --crypto`, and `agmem fsck`. Merkle proofs for single-blob verification. Keys: `.mem/keys/`; private key from env `AGMEM_SIGNING_PRIVATE_KEY` or `AGMEM_SIGNING_PRIVATE_KEY_FILE`. Old commits without `merkle_root` are unverified. |
+| **2** | **Encryption at rest** | Optional AES-256-GCM for object contents; key from passphrase via Argon2id; hash-then-encrypt preserves deduplication. Config in `.mem/encryption.json` or repo config; opt-in. |
+| **3** | **Tamper-evident audit trail** | Append-only, hash-chained log in `.mem/audit/` for init, add, commit, checkout, merge, push, pull, config. **Commands:** `agmem audit` (show entries), `agmem audit --verify` (verify chain). |
+
+### Tier 2 — Multi-agent collaboration
+
+| # | Feature | Description |
+|---|---------|-------------|
+| **4** | **Multi-agent trust and identity** | Trust store (full / conditional / untrusted) per public key; applied on pull and merge. Clone copies remote public keys; user adds them to trust store. Identity = keypair (same as commit signing). |
+| **5** | **Federated memory collaboration** | Agents share summaries or aggregated updates via a coordinator. **Command:** `agmem federated push` / `agmem federated pull` (stub). Config: `federated.enabled`, `coordinator_url`. |
+| **6** | **Conflict resolution interface** | Structured resolution: ours / theirs / both per path. **Command:** `agmem resolve [path]`. Conflicts persisted in `.mem/merge/conflicts.json`; path traversal protected. |
+
+### Tier 3 — Privacy
+
+| # | Feature | Description |
+|---|---------|-------------|
+| **7** | **Differential privacy** | Epsilon/delta budget per repo in `.mem/privacy_budget.json`. **Usage:** `agmem distill --private`, `agmem garden --private`; blocks when budget exceeded. Config: `differential_privacy.max_epsilon`, `delta`. |
+| **8** | **Zero-knowledge proofs** | zk-SNARK-style proofs for keyword containment and memory freshness. **Command:** `agmem prove --memory <path> --property keyword|freshness --value <v> [-o out]` (stub). |
+
+### Tier 4 — Storage and distribution
+
+| # | Feature | Description |
+|---|---------|-------------|
+| **9** | **Decentralized storage (IPFS)** | Push/pull via IPFS CIDs; pinning and gateway fallback. Stub in `memvcs.core.ipfs_remote`; optional dependency. |
+| **10** | **Pack files and garbage collection** | Pack loose objects into pack file + index; GC deletes unreachable objects. **Command:** `agmem gc [--dry-run] [--prune-days n]`. Config: `gc_prune_days` (default 90). |
+| **11** | **Enhanced cloud remote operations** | Push conflict detection: non–fast-forward push rejected with a clear message. S3/GCS remotes and distributed locking in storage layer. |
+
+### Tier 5 — Intelligence and retrieval
+
+| # | Feature | Description |
+|---|---------|-------------|
+| **12** | **Multi-provider LLM** | `memvcs.core.llm`: OpenAI and Anthropic; factory by config or env. Used by gardener, distiller, consistency checker, merge. Credentials via env (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`). |
+| **13** | **Enhanced semantic compression** | Multi-stage pipeline (chunk → fact extraction → dedup → embed → tiered storage); hybrid retrieval. Docstrings and design in distiller/vector store. |
+| **14** | **Temporal querying and time-travel** | Point-in-time and range queries in `memvcs.core.temporal_index`; frontmatter timestamps; “state at T” resolution. |
+| **15** | **Cross-memory relationship graph** | Knowledge graph extended with co-occurrence, semantic similarity, causal and entity edges; incremental updates. Docstrings in `knowledge_graph.py`. |
+
+### Tier 6 — Operations and maintenance
+
+| # | Feature | Description |
+|---|---------|-------------|
+| **16** | **Automated memory health monitoring** | Daemon runs periodic Merkle verification; safe auto-remediation hooks; unsafe actions alert only. |
+| **17** | **GPU-accelerated operations** | Vector store detects GPU for embedding model (e.g. sentence-transformers with CUDA/Metal); transparent CPU fallback. |
+| **18** | **Test suite and quality** | Broad tests: object store, merge, crypto (Merkle, proofs, verify), trust, privacy budget, pack/GC, resolve helpers, encryption, LLM provider; CI with coverage. |
+
+### New files and config (summary)
+
+| Addition | Purpose |
+|----------|---------|
+| `memvcs/core/crypto_verify.py` | Merkle build/verify, Ed25519 sign/verify, Merkle proofs |
+| `memvcs/core/audit.py` | Tamper-evident audit append and verify |
+| `memvcs/core/trust.py` | Trust store (key → level) |
+| `memvcs/core/privacy_budget.py` | Epsilon/delta budget for DP |
+| `memvcs/core/pack.py` | Pack format, index, GC |
+| `memvcs/core/encryption.py` | AES-256-GCM, Argon2id, config |
+| `memvcs/core/llm/` | LLM provider interface and OpenAI/Anthropic |
+| `memvcs/core/zk_proofs.py` | ZK proof stubs |
+| `memvcs/core/federated.py` | Federated push/pull stubs |
+| `.mem/audit/` | Audit log |
+| `.mem/keys/` | Public (and optional private) keys |
+| `.mem/trust/` or config | Trust store |
+| `.mem/privacy_budget.json` | DP budget state |
+| `.mem/merge/conflicts.json` | Unresolved merge conflicts |
+| Commit `metadata` | `merkle_root`, `signature` |
 
 ---
 
@@ -373,9 +466,19 @@ Repository configuration is stored in `.mem/config.json`:
     "summarizer_model": "default",
     "max_episode_size": 1048576,
     "consolidation_threshold": 100
+  },
+  "differential_privacy": {
+    "max_epsilon": 1.0,
+    "delta": 1e-5
+  },
+  "federated": {
+    "enabled": false,
+    "coordinator_url": ""
   }
 }
 ```
+
+Optional sections: **`differential_privacy`** (for `--private` on distill/garden); **`federated`** (for `agmem federated`); **`signing`** (public key for commit verification); trust store under `.mem/trust/` or config; encryption in `.mem/encryption.json` when enabled.
 
 ### agmem config (cloud and PII)
 
@@ -438,13 +541,17 @@ mypy memvcs/
 - [x] Basic commands (init, add, commit, status, log, diff, show, reset, tag, stash, reflog, blame, tree, clean)
 - [x] HEAD~n resolution; branch/tag names with `/` (Git-style)
 - [x] Branching and checkout; merging with memory-type-aware strategies
-- [x] Remote operations (clone, push, pull, remote) — file:// URLs; pull merges into current branch
+- [x] Remote operations (clone, push, pull, remote) — file:// URLs; pull merges into current branch; push conflict detection
 - [x] Search — semantic with `agmem[vector]`, plain text fallback
 - [x] Knowledge graph (`agmem graph`) — wikilinks, tags, optional similarity; `--no-similarity`, `--serve`
-- [x] Integrity (`agmem fsck`); path/ref/hash validation (security)
+- [x] Integrity (`agmem fsck`); path/ref/hash validation; Merkle/signature verification
 - [x] Web UI (`agmem serve`); MCP server (`agmem mcp`); daemon (`agmem daemon`); garden (`agmem garden`)
-- [ ] Garbage collection
-- [ ] Pack files for efficiency
+- [x] Cryptographic commit verification (Merkle tree, Ed25519 signing, verify on checkout/pull/fsck)
+- [x] Tamper-evident audit trail (`agmem audit`); multi-agent trust store; conflict resolution (`agmem resolve`)
+- [x] Encryption at rest (optional AES-256-GCM); differential privacy budget (`--private` on distill/garden)
+- [x] Pack files and garbage collection (`agmem gc`); ZK proofs and federated stubs (`agmem prove`, `agmem federated`)
+- [x] Multi-provider LLM (OpenAI, Anthropic); temporal range queries; daemon health checks; GPU detection; test suite and CI
+- [ ] IPFS remote (stub in place); full ZK circuits and federated coordinator
 
 ## Integrations
 
@@ -537,8 +644,10 @@ agmem graph --serve  # Serve knowledge graph UI (same extra)
 
 - **Full history:** `agmem log`, `agmem reflog`
 - **Line-level attribution:** `agmem blame <file>` — see which commit and author last changed each line (e.g. `agmem blame current/semantic/user-preferences.md`)
+- **Tamper-evident audit:** `agmem audit` and `agmem audit --verify` for hash-chained operation log
+- **Cryptographic verification:** `agmem verify --crypto` and `agmem fsck` for Merkle roots and Ed25519 signatures
 - **Visual audit:** `agmem serve` for browser-based history and diff viewer
-- **Integrity:** `agmem fsck` to verify objects and refs
+- **Integrity:** `agmem fsck` to verify objects, refs, and commit signatures
 
 ## Ecosystem Plugin Patterns
 

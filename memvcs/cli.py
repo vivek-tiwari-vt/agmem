@@ -58,6 +58,11 @@ from .commands.decay import DecayCommand
 from .commands.resurrect import ResurrectCommand
 from .commands.verify import VerifyCommand
 from .commands.repair import RepairCommand
+from .commands.audit import AuditCommand
+from .commands.federated import FederatedCommand
+from .commands.resolve import ResolveCommand
+from .commands.prove import ProveCommand
+from .commands.gc import GcCommand
 
 
 # List of available commands
@@ -100,6 +105,11 @@ COMMANDS = [
     ResurrectCommand,
     VerifyCommand,
     RepairCommand,
+    AuditCommand,
+    FederatedCommand,
+    ResolveCommand,
+    ProveCommand,
+    GcCommand,
 ]
 
 

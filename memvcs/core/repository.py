@@ -36,7 +36,22 @@ class Repository:
 
     def _init_components(self):
         """Initialize repository components."""
-        self.object_store = ObjectStore(self.mem_dir / "objects")
+        encryptor = None
+        try:
+            config = self.get_config()
+            if config.get("encryption", {}).get("enabled"):
+                from .encryption import (
+                    load_encryption_config,
+                    ObjectStoreEncryptor,
+                    get_key_from_env_or_cache,
+                )
+                if load_encryption_config(self.mem_dir):
+                    encryptor = ObjectStoreEncryptor(
+                        lambda: get_key_from_env_or_cache(self.mem_dir)
+                    )
+        except Exception:
+            pass
+        self.object_store = ObjectStore(self.mem_dir / "objects", encryptor=encryptor)
         self.staging = StagingArea(self.mem_dir)
         self.refs = RefsManager(self.mem_dir)
 
@@ -96,6 +111,13 @@ class Repository:
         # Initialize HEAD
         repo.refs.init_head("main")
 
+        # Tamper-evident audit
+        try:
+            from .audit import append_audit
+            append_audit(repo.mem_dir, "init", {"author": author_name, "branch": "main"})
+        except Exception:
+            pass
+
         return repo
 
     def is_valid_repo(self) -> bool:
@@ -115,6 +137,11 @@ class Repository:
     def set_config(self, config: Dict[str, Any]):
         """Set repository configuration."""
         self.config_file.write_text(json.dumps(config, indent=2))
+        try:
+            from .audit import append_audit
+            append_audit(self.mem_dir, "config_change", {})
+        except Exception:
+            pass
 
     def get_author(self) -> str:
         """Get the configured author string."""
@@ -298,6 +325,29 @@ class Repository:
         head_commit = self.get_head_commit()
         parents = [head_commit.store(self.object_store)] if head_commit else []
 
+        # Cryptographic verification: Merkle root + optional signing (private key from env)
+        meta = dict(metadata or {})
+        try:
+            from .crypto_verify import (
+                _collect_blob_hashes_from_tree,
+                build_merkle_tree,
+                load_private_key_from_env,
+                sign_merkle_root,
+                ED25519_AVAILABLE,
+            )
+            from .objects import Tree
+            tree = Tree.load(self.object_store, tree_hash)
+            if tree:
+                blobs = _collect_blob_hashes_from_tree(self.object_store, tree_hash)
+                merkle_root = build_merkle_tree(blobs)
+                meta["merkle_root"] = merkle_root
+                if ED25519_AVAILABLE:
+                    private_pem = load_private_key_from_env()
+                    if private_pem:
+                        meta["signature"] = sign_merkle_root(merkle_root, private_pem)
+        except Exception:
+            pass
+
         # Create commit
         commit = Commit(
             tree=tree_hash,
@@ -305,13 +355,20 @@ class Repository:
             author=self.get_author(),
             timestamp=datetime.utcnow().isoformat() + "Z",
             message=message,
-            metadata=metadata or {},
+            metadata=meta,
         )
         commit_hash = commit.store(self.object_store)
 
         # Reflog: record HEAD change
         old_hash = parents[0] if parents else "0" * 64
         self.refs.append_reflog("HEAD", old_hash, commit_hash, f"commit: {message}")
+
+        # Audit
+        try:
+            from .audit import append_audit
+            append_audit(self.mem_dir, "commit", {"commit": commit_hash, "message": message})
+        except Exception:
+            pass
 
         # Update HEAD
         head = self.refs.get_head()
@@ -354,6 +411,15 @@ class Repository:
         if not tree:
             raise ValueError(f"Reference not found: {ref}")
 
+        # Cryptographic verification: reject if Merkle/signature invalid
+        try:
+            from .crypto_verify import verify_commit_optional
+            verify_commit_optional(
+                self.object_store, commit_hash, mem_dir=self.mem_dir, strict=False
+            )
+        except ValueError as e:
+            raise ValueError(str(e))
+
         # Check for uncommitted changes
         if not force:
             staged = self.staging.get_staged_files()
@@ -376,6 +442,13 @@ class Repository:
 
         # Clear staging
         self.staging.clear()
+
+        # Audit
+        try:
+            from .audit import append_audit
+            append_audit(self.mem_dir, "checkout", {"ref": ref, "commit": commit_hash})
+        except Exception:
+            pass
 
         return commit_hash
 

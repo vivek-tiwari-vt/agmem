@@ -24,8 +24,9 @@ def _valid_object_hash(hash_id: str) -> bool:
 class ObjectStore:
     """Content-addressable object storage system."""
 
-    def __init__(self, objects_dir: Path):
+    def __init__(self, objects_dir: Path, encryptor: Optional[Any] = None):
         self.objects_dir = Path(objects_dir)
+        self._encryptor = encryptor
         self._ensure_directories()
 
     def _ensure_directories(self):
@@ -68,11 +69,15 @@ class ObjectStore:
         # Create directory if needed
         obj_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Compress and store
+        # Compress and optionally encrypt
         header = f"{obj_type} {len(content)}\0".encode()
         full_content = header + content
         compressed = zlib.compress(full_content)
-
+        if self._encryptor:
+            try:
+                compressed = self._encryptor.encrypt_payload(compressed)
+            except ValueError:
+                pass  # no key; store plain compressed (legacy behavior)
         obj_path.write_bytes(compressed)
         return hash_id
 
@@ -92,9 +97,14 @@ class ObjectStore:
         if not obj_path.exists():
             return None
 
-        # Decompress and extract content
-        compressed = obj_path.read_bytes()
-        full_content = zlib.decompress(compressed)
+        raw = obj_path.read_bytes()
+        # Optionally decrypt (iv+tag minimum 12+16 bytes)
+        if self._encryptor and len(raw) >= 12 + 16:
+            try:
+                raw = self._encryptor.decrypt_payload(raw)
+            except Exception:
+                pass  # legacy plain compressed
+        full_content = zlib.decompress(raw)
 
         # Parse header
         null_idx = full_content.index(b"\0")

@@ -56,6 +56,18 @@ class VectorStore:
                 "On macOS, try: brew install python (for Homebrew SQLite)"
             ) from e
 
+    def _device(self) -> str:
+        """Return device for embeddings: cuda/mps/cpu. GPU acceleration when available."""
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return "cuda"
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                return "mps"
+        except ImportError:
+            pass
+        return "cpu"
+
     def _get_model(self):
         """Lazy-load the sentence-transformers model."""
         if self._model is not None:
@@ -64,7 +76,8 @@ class VectorStore:
         try:
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer("all-MiniLM-L6-v2")
+            device = self._device()
+            self._model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
             return self._model
         except ImportError as e:
             raise ImportError(

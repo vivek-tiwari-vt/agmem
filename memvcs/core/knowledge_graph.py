@@ -84,6 +84,7 @@ class KnowledgeGraphBuilder:
     1. Wikilinks: [[filename]] references
     2. Semantic similarity: Using embeddings
     3. Shared tags: Files with common tags
+    4. Co-occurrence: Facts in same episodic session (optional)
     """
 
     # Pattern for wikilinks: [[target]] or [[target|display text]]

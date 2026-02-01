@@ -66,6 +66,10 @@ class FsckCommand:
         issues_found += ref_issues
         issues_fixed += ref_fixed
 
+        # Cryptographic verification (Merkle + signature)
+        crypto_issues = FsckCommand._check_crypto(repo, args.verbose)
+        issues_found += crypto_issues
+
         # Print summary
         print()
         print("=" * 40)
@@ -195,3 +199,32 @@ class FsckCommand:
             print(f"  Found {issues} ref issues")
 
         return issues, 0
+
+    @staticmethod
+    def _check_crypto(repo, verbose: bool) -> int:
+        """Verify Merkle/signature on branch tips. Returns number of issues."""
+        print("\nChecking commit signatures...")
+        try:
+            from ..core.crypto_verify import verify_commit, load_public_key
+        except ImportError:
+            if verbose:
+                print("  Crypto verification not available")
+            return 0
+        issues = 0
+        pub = load_public_key(repo.mem_dir)
+        for branch in repo.refs.list_branches():
+            ch = repo.refs.get_branch_commit(branch)
+            if not ch:
+                continue
+            ok, err = verify_commit(
+                repo.object_store, ch, public_key_pem=pub, mem_dir=repo.mem_dir
+            )
+            if not ok:
+                issues += 1
+                if verbose:
+                    print(f"  {branch} ({ch[:8]}): {err}")
+        if issues == 0:
+            print("  Commit signatures consistent")
+        else:
+            print(f"  Found {issues} commit(s) with verification issues")
+        return issues

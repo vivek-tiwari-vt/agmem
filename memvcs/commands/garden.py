@@ -38,12 +38,25 @@ class GardenCommand:
             help="LLM provider for summarization (default: none)",
         )
         parser.add_argument("--model", help="LLM model to use (e.g., gpt-3.5-turbo)")
+        parser.add_argument(
+            "--private",
+            action="store_true",
+            help="Use differential privacy (spend epsilon from budget)",
+        )
 
     @staticmethod
     def execute(args) -> int:
         repo, code = require_repo()
         if code != 0:
             return code
+
+        if getattr(args, "private", False):
+            from ..core.privacy_budget import load_budget, spend_epsilon
+            spent, max_eps, _ = load_budget(repo.mem_dir)
+            epsilon_cost = 0.1
+            if not spend_epsilon(repo.mem_dir, epsilon_cost):
+                print(f"Privacy budget exceeded (spent {spent:.2f}, max {max_eps}).")
+                return 1
 
         # Build config
         config = GardenerConfig(

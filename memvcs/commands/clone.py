@@ -90,5 +90,12 @@ class CloneCommand:
         }
         config_file.write_text(json.dumps(config, indent=2))
 
+        # Copy remote's public key to .mem/keys/remotes/origin.pub for trust store
+        remote_keys = remote_mem / "keys" / "public.pem"
+        if remote_keys.exists():
+            keys_remotes = target / ".mem" / "keys" / "remotes"
+            keys_remotes.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(remote_keys, keys_remotes / "origin.pub")
+
         print(f"Cloned into {target}")
         return 0

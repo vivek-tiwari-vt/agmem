@@ -110,9 +110,20 @@ class Distiller:
                 continue
         combined = "\n---\n".join(contents)
 
-        if self.config.llm_provider == "openai" and self.config.llm_model:
+        if self.config.llm_provider and self.config.llm_model:
             try:
-                return self._extract_with_openai(combined, cluster.topic)
+                from .llm import get_provider
+                config = {"llm_provider": self.config.llm_provider, "llm_model": self.config.llm_model}
+                provider = get_provider(config=config)
+                if provider:
+                    text = provider.complete(
+                        [
+                            {"role": "system", "content": "Extract factual statements from the text. Output as bullet points (one fact per line). Focus on: user preferences, learned facts, key decisions."},
+                            {"role": "user", "content": f"Topic: {cluster.topic}\n\n{combined[:4000]}"},
+                        ],
+                        max_tokens=500,
+                    )
+                    return [line.strip() for line in text.splitlines() if line.strip().startswith("-")][:15]
             except Exception:
                 pass
 
@@ -124,29 +135,6 @@ class Distiller:
                 if any(w in line.lower() for w in ["prefers", "likes", "uses", "learned", "user"]):
                     facts.append(f"- {line[:200]}")
         return facts[:10] if facts else [f"- Learned about {cluster.topic}"]
-
-    def _extract_with_openai(self, content: str, topic: str) -> List[str]:
-        """Extract facts using OpenAI API."""
-        import openai
-
-        response = openai.chat.completions.create(
-            model=self.config.llm_model or "gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Extract factual statements from the text. "
-                    "Output as bullet points (one fact per line). "
-                    "Focus on: user preferences, learned facts, key decisions.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Topic: {topic}\n\n{content[:4000]}",
-                },
-            ],
-            max_tokens=500,
-        )
-        text = response.choices[0].message.content
-        return [line.strip() for line in text.splitlines() if line.strip().startswith("-")][:15]
 
     def write_consolidated(self, cluster: EpisodeCluster, facts: List[str]) -> Path:
         """Write consolidated semantic file."""
