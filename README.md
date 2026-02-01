@@ -1,5 +1,6 @@
 # agmem - Agentic Memory Version Control System
 
+[![PyPI version](https://img.shields.io/pypi/v/agmem.svg)](https://pypi.org/project/agmem/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -36,6 +37,8 @@ agmem solves all of these problems with a familiar Git-like interface.
 ## Quick Start
 
 ### Installation
+
+**From PyPI** ([pypi.org/project/agmem](https://pypi.org/project/agmem/)):
 
 ```bash
 pip install agmem
@@ -566,6 +569,15 @@ Or connect via MCP and call `memory_add` from your agent.
 2. Read from `current/` for context
 3. Write via `agmem add` + `agmem commit` or MCP `memory_add`
 4. Optional: Use `agmem search` for semantic retrieval
+
+## Links
+
+- **PyPI:** [pypi.org/project/agmem](https://pypi.org/project/agmem/) — `pip install agmem`
+
+**GitHub repo (About):** Use this description and topics in your repo’s **About** (gear → Description & topics):
+
+- **Description:** Git for AI agent memories. Version control for episodic logs, semantic knowledge, and procedural workflows.
+- **Topics:** `ai` `agent` `memory` `version-control` `git` `vcs` `llm` `python`
 
 ## Contributing
 
