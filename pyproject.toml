@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agmem"
-version = "0.1.1"
+version = "0.1.2"
 description = "Agentic Memory Version Control System - Git for AI agent memories"
 readme = "README.md"
 license = {text = "MIT"}
@@ -66,6 +66,15 @@ daemon = [
 ]
 graph = [
     "networkx>=3.0",
+]
+pack = [
+    "tiktoken>=0.5.0",
+]
+distill = [
+    "openai>=1.0.0",
+]
+verify = [
+    "openai>=1.0.0",
 ]
 all = [
     "mcp>=1.0.0",
