@@ -2,17 +2,27 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.pytype/
+*.pyo
+*.pyd
 
 # Virtual environments
 venv/
 .venv/
 env/
+ENV/
+env.bak/
+venv.bak/
 
 # Distribution / packaging
 *.egg-info/
 *.egg
+*.eggs
 dist/
 build/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
 
 # agmem repository data (local memory store)
 .mem/
@@ -26,12 +36,34 @@ build/
 .vscode/
 *.swp
 *.swo
+*.sublime-*
+.LSOverride
 
-# Testing
+# Testing & Coverage
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+.hypothesis/
+*.cover
+
+# Temporary verification/session directories
+_verify_test/
+current/
 
 # OS
 .DS_Store
 Thumbs.db
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE settings (local overrides)
+.vscode/settings.json
+.idea/inspectionProfiles/
