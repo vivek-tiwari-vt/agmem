@@ -4,7 +4,7 @@ agmem tree - Show working directory or commit tree visually.
 
 import argparse
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from ..commands.base import require_repo
 from ..core.objects import Commit, Tree
@@ -18,7 +18,7 @@ def _build_tree_lines(
     show_hidden: bool = False,
     depth_limit: Optional[int] = None,
     current_depth: int = 0,
-) -> list[str]:
+) -> List[str]:
     """Build tree lines for a directory."""
     lines = []
     if depth_limit is not None and current_depth >= depth_limit:
@@ -48,7 +48,7 @@ def _build_tree_lines(
     return lines
 
 
-def _build_tree_from_entries(entries: list) -> list[str]:
+def _build_tree_from_entries(entries: list) -> List[str]:
     """Build tree lines from commit tree entries (flat path/name/hash)."""
     # Build nested dict: {dir: {subdir: {file: hash}}}
     root: dict = {}
@@ -65,7 +65,7 @@ def _build_tree_from_entries(entries: list) -> list[str]:
                     current[part] = {}
                 current = current[part]
 
-    def _render(node: dict, prefix: str = "") -> list[str]:
+    def _render(node: dict, prefix: str = "") -> List[str]:
         lines = []
         # Directories first, then files; alphabetically within each
         items = sorted(node.items(), key=lambda x: (not isinstance(x[1], dict), x[0].lower()))
