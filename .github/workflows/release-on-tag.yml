@@ -1,0 +1,32 @@
+# When you push a tag v* (e.g. v0.1.2), create the GitHub Release.
+# That triggers release:published → ci-and-publish.yml builds and publishes to PyPI.
+
+name: Create Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          # Optional: generate body from commits or a file
+          generate_release_notes: true
+          # Uncomment to make draft first, then publish manually:
+          # draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
