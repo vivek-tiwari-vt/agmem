@@ -13,9 +13,6 @@ on:
   release:
     types: [published]
 
-env:
-  PYTHON_VERSION_MATRIX: '["3.8", "3.9", "3.10", "3.11", "3.12"]'
-
 jobs:
   lint:
     name: Lint
@@ -43,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJson(env.PYTHON_VERSION_MATRIX) }}
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
         with:
