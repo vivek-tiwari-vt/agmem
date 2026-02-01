@@ -46,6 +46,11 @@ class DistillCommand:
             action="store_true",
             help="Use differential privacy (spend epsilon from budget)",
         )
+        parser.add_argument(
+            "--no-compress",
+            action="store_true",
+            help="Disable compression pipeline preprocessing",
+        )
 
     @staticmethod
     def execute(args) -> int:
@@ -73,6 +78,7 @@ class DistillCommand:
             source_dir=args.source,
             target_dir=args.target,
             create_safety_branch=not args.no_branch,
+            use_compression_pipeline=not getattr(args, "no_compress", False),
             use_dp=use_dp,
             dp_epsilon=dp_epsilon,
             dp_delta=dp_delta,

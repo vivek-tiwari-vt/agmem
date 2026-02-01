@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agmem"
-version = "0.1.6"
+version = "0.2.0"
 description = "Agentic Memory Version Control System - Git for AI agent memories"
 readme = "README.md"
 license = {text = "MIT"}
@@ -25,6 +25,10 @@ keywords = [
     "differential-privacy",
     "trust",
     "multi-agent",
+    "health-monitoring",
+    "delta-encoding",
+    "ipfs",
+    "federated",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -110,6 +114,12 @@ ipfs = [
 ipfs-daemon = [
     "ipfshttpclient>=0.8.0",
 ]
+# Federated coordinator server
+coordinator = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.22.0",
+    "pydantic>=2.0.0",
+]
 all = [
     "mcp>=1.0.0",
     "cryptography>=41.0.0",
@@ -127,6 +137,7 @@ all = [
     "tiktoken>=0.5.0",
     "presidio-analyzer>=2.2.0",
     "requests>=2.28.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.scripts]

@@ -1,7 +1,7 @@
 """
-Remote sync for agmem - file-based and cloud (S3/GCS) push/pull/clone.
+Remote sync for agmem - file-based, cloud (S3/GCS), and IPFS push/pull/clone.
 
-Supports file:// URLs and s3:///gs:// with optional distributed locking.
+Supports file://, s3://, gs://, and ipfs:// URLs with optional distributed locking.
 """
 
 import json
@@ -17,6 +17,11 @@ from .refs import RefsManager, _ref_path_under_root
 def _is_cloud_remote(url: str) -> bool:
     """Return True if URL is S3 or GCS (use storage adapter + optional lock)."""
     return url.startswith("s3://") or url.startswith("gs://")
+
+
+def _is_ipfs_remote(url: str) -> bool:
+    """Return True if URL is IPFS (ipfs://<cid>)."""
+    return url.startswith("ipfs://")
 
 
 def parse_remote_url(url: str) -> Path:
@@ -302,6 +307,75 @@ class Remote:
             pass
         return f"Fetched {copied} object(s) from {self.name}"
 
+    def _push_to_ipfs(self, branch: Optional[str] = None) -> str:
+        """Push objects to IPFS and update remote URL with CID."""
+        from .ipfs_remote import push_to_ipfs
+
+        refs = RefsManager(self.mem_dir)
+        store = ObjectStore(self.objects_dir)
+
+        # Determine which branch to push
+        target_branch = branch if branch else refs.get_current_branch() or "main"
+        commit_hash = refs.get_branch_commit(target_branch)
+
+        if not commit_hash:
+            raise ValueError(f"Branch '{target_branch}' has no commit")
+
+        # Get gateway URL from config or use default
+        gateway_url = self._config.get("ipfs", {}).get("gateway", "https://ipfs.io")
+
+        # Push to IPFS
+        cid = push_to_ipfs(self.objects_dir, target_branch, commit_hash, gateway_url, store)
+
+        if not cid:
+            raise ValueError("Failed to push to IPFS gateway")
+
+        # Update remote URL to new CID for future pulls
+        self.set_remote_url(f"ipfs://{cid}")
+
+        # TODO: Pin CID to prevent garbage collection
+        # Options: local IPFS daemon (ipfshttpclient), pinning service (Pinata/Infura)
+        # For now, user must manually pin or use a pinning service
+
+        try:
+            from .audit import append_audit
+
+            append_audit(
+                self.mem_dir,
+                "push",
+                {"remote": self.name, "branch": target_branch, "ipfs_cid": cid},
+            )
+        except Exception:
+            pass
+
+        return f"Pushed to IPFS: {cid} (WARNING: Not pinned - will be garbage collected unless pinned separately)"
+
+    def _pull_from_ipfs(self, url: str) -> str:
+        """Pull objects from IPFS by CID."""
+        from .ipfs_remote import pull_from_ipfs, parse_ipfs_url
+
+        cid = parse_ipfs_url(url)
+        if not cid:
+            raise ValueError(f"Invalid IPFS URL: {url}")
+
+        # Get gateway URL from config or use default
+        gateway_url = self._config.get("ipfs", {}).get("gateway", "https://ipfs.io")
+
+        # Pull from IPFS
+        success = pull_from_ipfs(self.objects_dir, cid, gateway_url)
+
+        if not success:
+            raise ValueError(f"Failed to pull from IPFS: {cid}")
+
+        try:
+            from .audit import append_audit
+
+            append_audit(self.mem_dir, "fetch", {"remote": self.name, "ipfs_cid": cid})
+        except Exception:
+            pass
+
+        return f"Fetched from IPFS: {cid}"
+
     def push(self, branch: Optional[str] = None) -> str:
         """
         Push objects and refs to remote.
@@ -310,6 +384,9 @@ class Remote:
         url = self.get_remote_url()
         if not url:
             raise ValueError(f"Remote '{self.name}' has no URL configured")
+
+        if _is_ipfs_remote(url):
+            return self._push_to_ipfs(branch)
 
         if _is_cloud_remote(url):
             try:
@@ -426,6 +503,9 @@ class Remote:
         url = self.get_remote_url()
         if not url:
             raise ValueError(f"Remote '{self.name}' has no URL configured")
+
+        if _is_ipfs_remote(url):
+            return self._pull_from_ipfs(url)
 
         if _is_cloud_remote(url):
             try:

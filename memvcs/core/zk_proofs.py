@@ -1,5 +1,17 @@
 """
-Zero-knowledge proof system for agmem.
+Cryptographic proof system for agmem.
+
+IMPORTANT: Current implementation provides PROOF-OF-KNOWLEDGE, not true zero-knowledge proofs.
+
+Limitations:
+- Keyword proof leaks: word count in file, allows verifier to test other words
+- Freshness proof: relies on forgeable filesystem mtime
+- Both proofs reveal deterministic information about file content
+
+For true zero-knowledge proofs, consider integrating zk-SNARK libraries like:
+- py-ecc (Ethereum cryptography)
+- circom (circuit compiler)
+- libsnark bindings
 
 Hash/signature-based proofs: keyword containment (Merkle set membership),
 memory freshness (signed timestamp). Full zk-SNARK backend can be added later.
@@ -36,8 +48,30 @@ def _word_hashes(content: str) -> List[str]:
 
 def prove_keyword_containment(memory_path: Path, keyword: str, output_proof_path: Path) -> bool:
     """
-    Prove memory file contains keyword without revealing content.
-    Proof: Merkle set membership of H(keyword) over word hashes in file.
+    Prove memory file contains keyword using Merkle set membership.
+
+    WARNING: This is PROOF-OF-KNOWLEDGE, not zero-knowledge:
+    - Leaks exact count of unique words in file (via Merkle root)
+    - Verifier can test if OTHER words exist by hashing and checking against same root
+    - Root is deterministic over full word set
+
+    For true zero-knowledge, would need:
+    - Commitment scheme that hides set size
+    - zk-SNARK proof that keyword ∈ committed set
+    - No ability for verifier to test other words
+
+    Current implementation is useful for:
+    - Proving you possess a file containing specific keywords
+    - Auditing that memories contain required terms
+    - Not suitable for privacy-preserving keyword proofs
+
+    Args:
+        memory_path: Path to memory file
+        keyword: Keyword to prove containment of
+        output_proof_path: Where to write proof JSON
+
+    Returns:
+        True if proof created successfully
     """
     if not memory_path.exists() or not memory_path.is_file():
         return False
@@ -68,8 +102,31 @@ def prove_memory_freshness(
     memory_path: Path, after_timestamp: str, output_proof_path: Path, mem_dir: Optional[Path] = None
 ) -> bool:
     """
-    Prove memory was updated after date without revealing content.
-    Proof: signed file mtime (or current time) and optional public key.
+    Prove memory was updated after date using signed timestamp.
+
+    WARNING: Security limitations:
+    - Relies on filesystem mtime which is TRIVIALLY FORGEABLE (touch command)
+    - Only proves key holder signed *some* timestamp, not actual freshness
+    - No protection against backdating files
+
+    Improvements needed:
+    - Sign content hash + timestamp (not just timestamp)
+    - Use trusted timestamping service (RFC 3161)
+    - Blockchain-based timestamp anchoring
+
+    Current implementation is useful for:
+    - Proving you signed a file at some claimed time
+    - Creating audit trails with signature verification
+    - Not suitable for proving actual file recency
+
+    Args:
+        memory_path: Path to memory file
+        after_timestamp: Timestamp to prove freshness after (not currently enforced)
+        output_proof_path: Where to write proof JSON
+        mem_dir: Memory directory for key loading
+
+    Returns:
+        True if proof created successfully
     """
     if not memory_path.exists() or not memory_path.is_file():
         return False

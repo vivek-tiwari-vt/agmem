@@ -42,8 +42,9 @@ agmem solves all of these problems with a familiar Git-like interface.
 - ✅ **Multi-provider LLM** — OpenAI and Anthropic via `memvcs.core.llm`; config/repo or env; used by gardener, distiller, consistency, merge
 - ✅ **Temporal querying** — Point-in-time and range queries in temporal index; frontmatter timestamps
 - ✅ **Federated collaboration** — `agmem federated push|pull`; real summaries (topic counts, fact hashes); optional DP on outbound; coordinator API in docs/FEDERATED.md
-- ✅ **Zero-knowledge proofs** — `agmem prove` (hash/signature-based): keyword containment (Merkle set membership), memory freshness (signed timestamp)
-- ✅ **Daemon health** — Periodic Merkle verification in daemon loop; safe auto-remediation hooks
+- ✅ **Zero-knowledge proofs** — `agmem prove` (hash/signature-based): keyword containment (Merkle set membership), memory freshness (signed timestamp). **Note:** Current implementation is proof-of-knowledge with known limitations; see docs for migration to true zk-SNARKs.
+- ✅ **Daemon health** — 4-point health monitoring (storage, redundancy, staleness, graph consistency) with periodic checks; visible warnings and JSON reports
+- ✅ **Delta encoding** — 5-10x compression for similar objects using Levenshtein distance and SequenceMatcher; optional feature in pack files
 - ✅ **GPU acceleration** — Vector store detects GPU for embedding model when available
 - ✅ **Optional** — `serve`, `daemon` (watch + auto-commit), `garden` (episode archival), MCP server; install extras as needed
 
@@ -374,8 +375,8 @@ The following 18 capabilities are implemented (or stubbed) per the agmem feature
 
 | # | Feature | Description |
 |---|---------|-------------|
-| **7** | **Differential privacy** | Epsilon/delta budget per repo in `.mem/privacy_budget.json`. **Usage:** `agmem distill --private`, `agmem garden --private`; blocks when budget exceeded. Config: `differential_privacy.max_epsilon`, `delta`. |
-| **8** | **Zero-knowledge proofs** | zk-SNARK-style proofs for keyword containment and memory freshness. **Command:** `agmem prove --memory <path> --property keyword|freshness --value <v> [-o out]` (stub). |
+| **7** | **Differential privacy** | Epsilon/delta budget per repo in `.mem/privacy_budget.json`. **Usage:** `agmem distill --private`, `agmem garden --private`; blocks when budget exceeded. Config: `differential_privacy.max_epsilon`, `delta`. **Note:** Now correctly applied to actual facts during extraction, not metadata counts. |
+| **8** | **Cryptographic proofs (proof-of-knowledge)** | Hash/signature-based proofs for keyword containment (Merkle set membership) and memory freshness (signed timestamp). **Command:** `agmem prove --memory <path> --property keyword\|freshness --value <v> [-o out]`. **IMPORTANT:** These are proof-of-knowledge, not true zero-knowledge proofs. Keyword proof leaks word count and allows verifier to test other words. Freshness proof relies on forgeable filesystem mtime. See `memvcs/core/zk_proofs.py` for details and migration path to zk-SNARKs. |
 
 ### Tier 4 — Storage and distribution
 

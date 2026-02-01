@@ -227,11 +227,12 @@ class DaemonCommand:
             while running:
                 time.sleep(1)
 
-                # Periodic health check (Merkle/signature, optional). Alert only; no destructive action.
+                # Periodic health check (Merkle/signature + operational metrics). Alert only; no destructive action.
                 if (
                     health_check_interval
                     and (time.time() - last_health_check) >= health_check_interval
                 ):
+                    # Cryptographic integrity check
                     try:
                         from ..core.crypto_verify import verify_commit, load_public_key
 
@@ -251,6 +252,41 @@ class DaemonCommand:
                                     sys.stderr.write("Run 'agmem fsck' for safe integrity check.\n")
                     except Exception:
                         pass
+
+                    # Operational health checks (storage, redundancy, stale memory, graph consistency)
+                    try:
+                        from ..health.monitor import HealthMonitor
+
+                        health_monitor = HealthMonitor(repo.root)
+                        report = health_monitor.perform_all_checks()
+
+                        if report.get("warnings"):
+                            for warning in report["warnings"]:
+                                sys.stderr.write(f"Health warning: {warning}\n")
+
+                        # Log summary metrics
+                        if report.get("storage"):
+                            storage = report["storage"]
+                            if "total_size_mb" in storage:
+                                sys.stderr.write(
+                                    f"Storage: {storage['total_size_mb']:.1f}MB "
+                                    f"({storage['packed_objects']} packed objects)\n"
+                                )
+                        if report.get("redundancy"):
+                            red = report["redundancy"]
+                            if "redundancy_percentage" in red:
+                                sys.stderr.write(
+                                    f"Redundancy: {red['redundancy_percentage']:.1f}%\n"
+                                )
+                        if report.get("stale_memory"):
+                            stale = report["stale_memory"]
+                            if "stale_percentage" in stale:
+                                sys.stderr.write(
+                                    f"Stale memory: {stale['stale_percentage']:.1f}%\n"
+                                )
+                    except Exception:
+                        pass
+
                     last_health_check = time.time()
 
                 if handler.pending:

@@ -2,6 +2,7 @@
 
 import pytest
 import tempfile
+import time
 from pathlib import Path
 
 from memvcs.core.objects import ObjectStore, Blob, Tree, TreeEntry, Commit
@@ -105,3 +106,63 @@ class TestWritePackAndRetrieve:
             packed, freed = run_repack(mem_dir, store, gc_prune_days=90, dry_run=True)
             assert packed >= 0
             assert freed == 0
+
+    def test_retrieve_pack_performance_binary_search(self):
+        """Test binary search performance with many objects."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            objects_dir = Path(tmpdir)
+            store = ObjectStore(objects_dir)
+
+            # Create 1000 objects to test binary search efficiency
+            hash_to_type = {}
+            target_hashes = []
+            for i in range(1000):
+                content = f"content{i}".encode()
+                h = store.store(content, "blob")
+                hash_to_type[h] = "blob"
+                if i % 100 == 0:  # Save some hashes for testing
+                    target_hashes.append(h)
+
+            # Write pack file
+            pack_path, idx_path = write_pack(objects_dir, store, hash_to_type)
+            assert pack_path.exists()
+            assert idx_path.exists()
+
+            # Test retrieval performance (should be fast with binary search)
+            start = time.time()
+            for h in target_hashes:
+                result = retrieve_from_pack(objects_dir, h, expected_type="blob")
+                assert result is not None
+                assert result[0] == "blob"
+            elapsed = time.time() - start
+
+            # With binary search (O(log n)), this should be fast
+            # With linear scan (O(n)), this would be much slower
+            assert elapsed < 0.5  # Should complete in well under 500ms
+
+    def test_retrieve_from_pack_not_found(self):
+        """Test retrieve_from_pack returns None for non-existent hash."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            objects_dir = Path(tmpdir)
+            store = ObjectStore(objects_dir)
+            h1 = store.store(b"exists", "blob")
+            hash_to_type = {h1: "blob"}
+            write_pack(objects_dir, store, hash_to_type)
+
+            # Try to retrieve non-existent hash
+            fake_hash = "0" * 64
+            result = retrieve_from_pack(objects_dir, fake_hash, expected_type="blob")
+            assert result is None
+
+    def test_retrieve_from_pack_wrong_type(self):
+        """Test retrieve_from_pack returns None when expected_type doesn't match."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            objects_dir = Path(tmpdir)
+            store = ObjectStore(objects_dir)
+            h = store.store(b"blob content", "blob")
+            hash_to_type = {h: "blob"}
+            write_pack(objects_dir, store, hash_to_type)
+
+            # Try to retrieve as wrong type
+            result = retrieve_from_pack(objects_dir, h, expected_type="tree")
+            assert result is None
