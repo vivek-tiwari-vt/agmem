@@ -47,6 +47,61 @@ agmem solves all of these problems with a familiar Git-like interface.
 - ✅ **GPU acceleration** — Vector store detects GPU for embedding model when available
 - ✅ **Optional** — `serve`, `daemon` (watch + auto-commit), `garden` (episode archival), MCP server; install extras as needed
 
+### Feature Coverage
+
+```mermaid
+graph TB
+    subgraph Core ["🔧 Core Features"]
+        Core1["✅ Git-like commands<br/>init, add, commit, log, branch, merge"]
+        Core2["✅ Content-addressable storage<br/>SHA-256, zlib, dedup"]
+        Core3["✅ Memory-type merge<br/>Episodic, Semantic, Procedural"]
+    end
+    
+    subgraph Collab ["👥 Collaboration"]
+        Collab1["✅ Remote push/pull<br/>file:// URLs, conflict detection"]
+        Collab2["✅ Multi-agent trust<br/>Trust store, key verification"]
+        Collab3["✅ Federated sync<br/>Coordinator API"]
+    end
+    
+    subgraph Safety ["🔒 Safety & Integrity"]
+        Safety1["✅ Cryptographic<br/>Merkle, Ed25519"]
+        Safety2["✅ Tamper detection<br/>Audit trail, hash-chain"]
+        Safety3["✅ Encryption at rest<br/>AES-256-GCM"]
+    end
+    
+    subgraph Privacy ["🕵️ Privacy"]
+        Privacy1["✅ Differential privacy<br/>Epsilon/delta budget"]
+        Privacy2["✅ Zero-knowledge proofs<br/>Keyword, Freshness"]
+        Privacy3["✅ PII scanning<br/>Pre-commit hooks"]
+    end
+    
+    subgraph Intelligence ["🧠 Intelligence"]
+        Intel1["✅ Semantic search<br/>Vector + Text fallback"]
+        Intel2["✅ Knowledge graph<br/>Wikilinks, Co-occurrence"]
+        Intel3["✅ LLM integration<br/>OpenAI, Anthropic"]
+        Intel4["✅ Temporal queries<br/>Point-in-time, Range"]
+    end
+    
+    subgraph Ops ["⚙️ Operations"]
+        Ops1["✅ Pack/GC<br/>Object packing, cleanup"]
+        Ops2["✅ Daemon mode<br/>Watch + auto-commit"]
+        Ops3["✅ IPFS/S3/GCS<br/>Distributed storage"]
+    end
+    
+    Core --> Collab
+    Collab --> Safety
+    Safety --> Privacy
+    Privacy --> Intelligence
+    Intelligence --> Ops
+    
+    style Core fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style Collab fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Safety fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style Privacy fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Intelligence fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    style Ops fill:#fff3e0,stroke:#e65100,stroke-width:2px
+```
+
 ## Quick Start
 
 ### Installation
@@ -247,7 +302,55 @@ Verifies objects, refs, and (if installed) the vector store. When commit metadat
 
 ---
 
+## Security Architecture
+
+agmem implements security in layers. Choose what you need:
+
+```mermaid
+graph TB
+    subgraph L1 ["🔒 Tier 1: Cryptographic Integrity"]
+        T1A["✅ Merkle tree<br/>over blobs"]
+        T1B["✅ Ed25519<br/>signatures"]
+        T1C["✅ Tamper<br/>detection"]
+    end
+    
+    subgraph L2 ["🔐 Tier 2: Multi-Agent Trust"]
+        T2A["✅ Trust store<br/>per public key"]
+        T2B["✅ Multi-agent<br/>collaboration"]
+        T2C["✅ Conflict<br/>resolution"]
+    end
+    
+    subgraph L3 ["🕵️ Tier 3: Privacy & Anonymity"]
+        T3A["✅ Differential<br/>Privacy budget"]
+        T3B["✅ Zero-Knowledge<br/>Proofs"]
+        T3C["✅ Encrypted<br/>at rest"]
+    end
+    
+    subgraph L4 ["🌐 Tier 4: Distribution"]
+        T4A["✅ S3/GCS<br/>remotes"]
+        T4B["✅ IPFS<br/>support"]
+        T4C["✅ Pack files<br/>& GC"]
+    end
+    
+    subgraph L5 ["📊 Tier 5: Audit & Compliance"]
+        T5A["✅ Append-only<br/>audit log"]
+        T5B["✅ Hash-chained<br/>verification"]
+        T5C["✅ Full history<br/>& blame"]
+    end
+    
+    L1 --> L2 --> L3 --> L4 --> L5
+    
+    style L1 fill:#ffebee,stroke:#c62828
+    style L2 fill:#ede7f6,stroke:#512da8
+    style L3 fill:#e1f5fe,stroke:#01579b
+    style L4 fill:#f3e5f5,stroke:#7b1fa2
+    style L5 fill:#e8f5e9,stroke:#1b5e20
+```
+
+---
+
 ## Security, trust & advanced features
+
 
 The following 18 capabilities are implemented (or stubbed) per the agmem features implementation plan. They are grouped by tier.
 
@@ -364,41 +467,88 @@ current/procedural/
 
 ### Memory Flow
 
+```mermaid
+graph LR
+    A["📂 Working Directory<br/>current/<br/>episodic/<br/>semantic/<br/>procedural/"] 
+    B["📝 Staging Area<br/>index.json<br/>staged files"]
+    C["💾 Object Storage<br/>.mem/objects/<br/>blobs → trees → commits"]
+    D["📍 References<br/>.mem/refs/<br/>HEAD, branches, tags"]
+    
+    A -->|agmem add| B
+    B -->|agmem commit| C
+    C --> D
+    
+    style A fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style B fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style C fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
 ```
-  current/                    staging                    .mem/
-  ╭────────────────────┐    ╭─────────────┐    ╭──────────────────────┐
-  │ episodic/           │    │             │    │  objects/            │
-  │   session logs      │    │  index.json  │    │  blobs → trees →     │
-  │ semantic/           │───►│  (staged)   │───►│  commits             │
-  │   facts, prefs      │    │             │    │  (content-addressable)│
-  │ procedural/         │    │             │    │                      │
-  │   workflows         │    ╰─────────────╯    ╰──────────────────────╯
-  ╰────────────────────┘
-         │                         │
-    agmem add               agmem commit
-```
 
-### Merge Strategies
+### Merge Strategies by Memory Type
 
-```
-  Episodic      Branch A ──╮
-  (append)      Branch B ──╯──►  chronological append  ──►  ✓ no conflicts
-
-  Semantic      Branch A ──╮
-  (consolidate) Branch B ──╯──►  conflict markers      ──►  ⚠ manual review
-
-  Procedural    Branch A ──╮
-  (prefer new)  Branch B ──╯──►  newer wins            ──►  ⚠ flag for review
+```mermaid
+graph TB
+    A["🌿 Branch A"] --> E{Memory Type?}
+    B["🌿 Branch B"] --> E
+    
+    E -->|"<b>Episodic</b><br/>session logs"| F["⏰ Chronological<br/>Append"]
+    E -->|"<b>Semantic</b><br/>learned facts"| G["🤝 Conflict<br/>Markers"]
+    E -->|"<b>Procedural</b><br/>workflows"| H["✨ Prefer New<br/>with Flag"]
+    
+    F --> I["✅ No Conflicts<br/>Deterministic merge"]
+    G --> J["⚠️ Manual Review<br/>Conflict markers"]
+    H --> J
+    
+    style E fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+    style F fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+    style G fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    style H fill:#b3e5fc,stroke:#01579b,stroke-width:2px
+    style I fill:#81c784,stroke:#1b5e20,stroke-width:2px
+    style J fill:#ffb74d,stroke:#e65100,stroke-width:2px
 ```
 
 ### How Others Handle Memory vs agmem
 
-| Tool | Approach | Gap |
-|------|----------|-----|
-| **Cursor** | Ephemeral, session-based context; no persistent version control | No history, branching, or merge for agent memory |
-| **Claude Code** | File-based (CLAUDE.md, .claude/rules); loaded at launch | No built-in version control; Git is not memory-type-aware |
-| **Mem0** | Cloud/API; vector-based persistence | No branching, merging, or "git log" for what the agent learned |
-| **agmem** | Git-like version control for memory | Version history, branching, merging, local-first, memory-type-aware |
+```mermaid
+graph LR
+    subgraph Cursor ["Cursor<br/>Ephemeral"]
+        C1["❌ No history"]
+        C2["❌ No branching"]
+        C3["❌ Session-based"]
+    end
+    
+    subgraph Claude ["Claude Code<br/>File-based"]
+        Cl1["⚠️ Manual Git"]
+        Cl2["❌ Not memory-aware"]
+        Cl3["⚠️ At launch"]
+    end
+    
+    subgraph Mem0 ["Mem0<br/>Cloud/Vector"]
+        M1["⚠️ Proprietary"]
+        M2["❌ No branching"]
+        M3["❌ Black box"]
+    end
+    
+    subgraph agmem_box ["agmem<br/>Git for Memory"]
+        A1["✅ Full history"]
+        A2["✅ Branches & merge"]
+        A3["✅ Local-first"]
+        A4["✅ Type-aware"]
+        A5["✅ Open source"]
+    end
+    
+    style Cursor fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style Claude fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style Mem0 fill:#ede7f6,stroke:#512da8,stroke-width:2px
+    style agmem_box fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px
+```
+
+| Tool | Approach | agmem Advantage |
+|------|----------|--------|
+| **Cursor** | Ephemeral, session-based context | ✅ Full history, persistent, branching |
+| **Claude Code** | File-based (CLAUDE.md); needs Git | ✅ Memory-type-aware merge strategies |
+| **Mem0** | Cloud/API with vector persistence | ✅ Local-first, transparent, version control |
+| **agmem** | 🎯 **Git for Agent Memory** | Version history, branching, merging, local-first, type-aware |
 
 ## Example: Multi-Agent Collaboration
 
@@ -499,23 +649,44 @@ Repo overrides user. **Never put secrets in config files.** Credentials are supp
 
 agmem follows Git's proven architecture:
 
-```
-  ╔═══════════════════════════════════════════════════════════════════════╗
-  ║  PORCELAIN  ·  What you type                                         ║
-  ╠═══════════════════════════════════════════════════════════════════════╣
-  ║    init  add  commit  status  log   ·   branch  checkout  merge       ║
-  ║    diff  show  tag  reset  tree     ·   stash  clean  blame  reflog   ║
-  ║    clone  push  pull  remote  fsck  ·   graph  search  serve  daemon   ║
-  ╠═══════════════════════════════════════════════════════════════════════╣
-  ║  PLUMBING  ·  What happens under the hood                             ║
-  ╠═══════════════════════════════════════════════════════════════════════╣
-  ║    objects (blob, tree, commit)  ·  refs (HEAD, branches, tags)      ║
-  ║    staging area                                                       ║
-  ╠═══════════════════════════════════════════════════════════════════════╣
-  ║  STORAGE  ·  On disk                                                 ║
-  ╠═══════════════════════════════════════════════════════════════════════╣
-  ║    SHA-256 hashing  ·  zlib compression  ·  deduplication            ║
-  ╚═══════════════════════════════════════════════════════════════════════╝
+```mermaid
+graph TB
+    subgraph Commands ["🎯 Commands - Porcelain (What you type)"]
+        A1["init, add, commit, status, log, diff, show, tag, reset, tree"]
+        A2["branch, checkout, merge, stash, clean, blame, reflog"]
+        A3["clone, push, pull, remote, fsck, verify, audit, resolve"]
+        A4["gc, prove, federated, search, graph, serve, daemon, garden"]
+    end
+    
+    subgraph Core ["⚙️ Core Operations - Plumbing (What happens)"]
+        B1["Staging Area<br/>index.json"]
+        B2["Objects<br/>Blob, Tree, Commit, Tag"]
+        B3["References<br/>HEAD, Branches, Tags"]
+        B4["Memory-type Merge<br/>Episodic, Semantic, Procedural"]
+    end
+    
+    subgraph Storage ["💾 Storage - Disk (Where data lives)"]
+        C1["SHA-256 Hashing"]
+        C2["zlib Compression"]
+        C3["Deduplication"]
+        C4["Validation<br/>Path, Ref, Hash"]
+    end
+    
+    subgraph Features ["🔐 Advanced Features"]
+        D1["Crypto Verification<br/>Merkle, Ed25519"]
+        D2["Encryption at Rest<br/>AES-256-GCM"]
+        D3["Privacy<br/>Differential Privacy"]
+        D4["Trust & Audit<br/>Multi-agent, Hash-chain"]
+    end
+    
+    Commands --> Core
+    Core --> Storage
+    Storage --> Features
+    
+    style Commands fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style Core fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Storage fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style Features fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
 ## Development
