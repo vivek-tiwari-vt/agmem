@@ -53,7 +53,5 @@ class TestOpenAIProviderMocked:
         provider = OpenAIProvider(model="gpt-3.5-turbo")
         mock_openai = _mock_openai_module("mocked")
         with patch.dict(sys.modules, {"openai": mock_openai}):
-            out = provider.complete(
-                [{"role": "user", "content": "test"}], max_tokens=10
-            )
+            out = provider.complete([{"role": "user", "content": "test"}], max_tokens=10)
         assert out == "mocked"
