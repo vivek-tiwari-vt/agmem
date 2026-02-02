@@ -41,7 +41,7 @@ except ImportError:
 
 
 def _get_version() -> str:
-    """Get agmem version from pyproject.toml. Falls back to 0.2.0 if not found."""
+    """Get agmem version from pyproject.toml. Falls back to 0.2.1 if not found."""
     try:
         pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
         if pyproject_path.exists():
@@ -51,7 +51,7 @@ def _get_version() -> str:
                 return match.group(1)
     except Exception:
         pass
-    return "0.2.0"
+    return "0.2.1"
 
 
 # Storage: In-memory for simplicity (use Redis/PostgreSQL for production)

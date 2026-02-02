@@ -14,7 +14,7 @@ else:
 
 setup(
     name="agmem",
-    version="0.1.6",
+    version="0.2.1",
     description="Agentic Memory Version Control System - Git for AI agent memories",
     long_description=long_description,
     long_description_content_type="text/markdown",

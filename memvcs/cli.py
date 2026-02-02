@@ -141,7 +141,7 @@ For more information: https://github.com/vivek-tiwari-vt/agmem
         """,
     )
 
-    parser.add_argument("--version", "-v", action="version", version="%(prog)s 0.1.0")
+    parser.add_argument("--version", "-v", action="version", version="%(prog)s 0.2.1")
 
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 

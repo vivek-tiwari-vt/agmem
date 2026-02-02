@@ -82,7 +82,7 @@ Content-Type: application/json
       "def456..."
     ],
     "metadata": {
-      "version": "0.1.6"
+      "version": "0.2.1"
     }
   }
 }
