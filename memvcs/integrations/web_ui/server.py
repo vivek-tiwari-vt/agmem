@@ -180,6 +180,430 @@ def create_app(repo_path: Path) -> FastAPI:
             # Return embedded graph viewer
             return HTMLResponse(GRAPH_HTML_TEMPLATE)
 
+    # --- Additional API Endpoints ---
+
+    @app.get("/api/commit/{commit_hash}")
+    async def api_commit(commit_hash: str):
+        """Get detailed information about a single commit."""
+        from memvcs.core.repository import Repository
+        from memvcs.core.objects import Commit, Tree
+        from memvcs.core.refs import _valid_commit_hash
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        resolved = repo.resolve_ref(commit_hash) or (
+            commit_hash if _valid_commit_hash(commit_hash) else None
+        )
+        if not resolved:
+            raise HTTPException(status_code=400, detail="Invalid revision or hash")
+
+        commit = Commit.load(repo.object_store, resolved)
+        if not commit:
+            raise HTTPException(status_code=404, detail="Commit not found")
+
+        # Get commit data via to_dict()
+        commit_data = commit.to_dict()
+
+        # Get file list from tree
+        tree = Tree.load(repo.object_store, commit_data["tree"])
+        files = []
+        if tree:
+            for e in tree.entries:
+                path = f"{e.path}/{e.name}" if e.path else e.name
+                files.append({"path": path, "hash": e.hash, "type": e.obj_type})
+
+        return {
+            "hash": resolved,
+            "short_hash": resolved[:8],
+            "tree": commit_data["tree"],
+            "parents": commit_data.get("parents", []),
+            "message": commit_data["message"],
+            "author": commit_data["author"],
+            "timestamp": commit_data["timestamp"],
+            "metadata": commit_data.get("metadata", {}),
+            "files": files,
+        }
+
+    @app.get("/api/trust")
+    async def api_trust():
+        """Get trust graph data for visualization."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.trust import TrustManager
+
+            trust_mgr = TrustManager(repo.mem_dir)
+            agents = trust_mgr.list_agents()
+
+            nodes = []
+            links = []
+
+            for agent in agents:
+                info = trust_mgr.get_agent_info(agent)
+                nodes.append(
+                    {
+                        "id": agent,
+                        "name": info.get("name", agent[:8]),
+                        "trust_level": info.get("trust_level", "unknown"),
+                        "public_key": info.get("public_key", "")[:16] + "...",
+                    }
+                )
+
+            # Build trust relationships
+            for agent in agents:
+                trusted = trust_mgr.get_trusted_agents(agent)
+                for trusted_agent in trusted:
+                    links.append(
+                        {
+                            "source": agent,
+                            "target": trusted_agent,
+                            "trust_level": trust_mgr.get_trust_level(agent, trusted_agent),
+                        }
+                    )
+
+            return {"nodes": nodes, "links": links}
+        except ImportError:
+            return {"nodes": [], "links": [], "error": "Trust module not available"}
+        except Exception as e:
+            return {"nodes": [], "links": [], "error": str(e)}
+
+    @app.get("/api/privacy")
+    async def api_privacy():
+        """Get privacy budget status."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.privacy_budget import PrivacyBudget
+
+            budget = PrivacyBudget(repo.mem_dir)
+            status = budget.get_status()
+
+            return {
+                "epsilon_used": status.get("epsilon_used", 0),
+                "epsilon_limit": status.get("epsilon_limit", 10),
+                "delta_used": status.get("delta_used", 0),
+                "delta_limit": status.get("delta_limit", 1e-5),
+                "operations_count": status.get("operations_count", 0),
+                "percentage_used": min(
+                    100, (status.get("epsilon_used", 0) / status.get("epsilon_limit", 10)) * 100
+                ),
+            }
+        except ImportError:
+            return {"epsilon_used": 0, "epsilon_limit": 10, "error": "Privacy module not available"}
+        except Exception as e:
+            return {"epsilon_used": 0, "epsilon_limit": 10, "error": str(e)}
+
+    @app.get("/api/search")
+    async def api_search(q: str, memory_type: Optional[str] = None, max_results: int = 20):
+        """Search memory files."""
+        from memvcs.core.repository import Repository
+        from memvcs.core.constants import MEMORY_TYPES
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        if not q or len(q) < 2:
+            raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+
+        query_lower = q.lower()
+        results = []
+
+        subdirs = list(MEMORY_TYPES)
+        if memory_type and memory_type.lower() in MEMORY_TYPES:
+            subdirs = [memory_type.lower()]
+
+        for subdir in subdirs:
+            dir_path = repo.current_dir / subdir
+            if not dir_path.exists():
+                continue
+
+            for f in dir_path.rglob("*"):
+                if f.is_file() and len(results) < max_results:
+                    try:
+                        content = f.read_text(encoding="utf-8", errors="replace")
+                        if query_lower in content.lower():
+                            rel = str(f.relative_to(repo.current_dir))
+                            # Extract matching snippet
+                            idx = content.lower().find(query_lower)
+                            start = max(0, idx - 50)
+                            end = min(len(content), idx + len(q) + 50)
+                            snippet = content[start:end]
+
+                            results.append(
+                                {
+                                    "path": rel,
+                                    "memory_type": subdir,
+                                    "snippet": snippet,
+                                    "filename": f.name,
+                                }
+                            )
+                    except Exception:
+                        pass
+
+        return {"query": q, "results": results, "count": len(results)}
+
+    @app.get("/api/status")
+    async def api_status():
+        """Get repository status."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        status = repo.get_status()
+        head = repo.refs.get_head()
+        branch = repo.refs.get_current_branch()
+
+        return {
+            "branch": branch or "detached",
+            "head": head.get("value", "")[:8] if head else None,
+            "staged": status.get("staged", []),
+            "modified": status.get("modified", []),
+            "untracked": status.get("untracked", []),
+            "is_clean": not status.get("staged") and not status.get("modified"),
+        }
+
+    @app.get("/api/audit")
+    async def api_audit(max_entries: int = 50):
+        """Get audit log entries."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.audit import read_audit, verify_audit
+
+            entries = read_audit(repo.mem_dir, max_entries=max_entries)
+            valid, first_bad = verify_audit(repo.mem_dir)
+
+            return {
+                "entries": entries,
+                "count": len(entries),
+                "valid": valid,
+                "first_bad_index": first_bad,
+            }
+        except ImportError:
+            return {"entries": [], "error": "Audit module not available"}
+        except Exception as e:
+            return {"entries": [], "error": str(e)}
+
+    # --- Collaboration API ---
+
+    @app.get("/api/collaboration")
+    async def api_collaboration():
+        """Get collaboration dashboard data."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.collaboration import get_collaboration_dashboard
+
+            return get_collaboration_dashboard(repo.mem_dir)
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/agents")
+    async def api_agents():
+        """Get all registered agents."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.collaboration import AgentRegistry
+
+            registry = AgentRegistry(repo.mem_dir)
+            return {"agents": [a.to_dict() for a in registry.list_agents()]}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/trust")
+    async def api_trust():
+        """Get trust network graph."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.collaboration import TrustManager
+
+            trust_mgr = TrustManager(repo.mem_dir)
+            return trust_mgr.get_trust_graph()
+        except Exception as e:
+            return {"error": str(e), "nodes": [], "links": []}
+
+    # --- Compliance API ---
+
+    @app.get("/api/compliance")
+    async def api_compliance():
+        """Get compliance dashboard data."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.compliance import get_compliance_dashboard
+
+            return get_compliance_dashboard(repo.mem_dir, repo.current_dir)
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/privacy")
+    async def api_privacy():
+        """Get privacy budget status."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.compliance import PrivacyManager
+
+            mgr = PrivacyManager(repo.mem_dir)
+            return mgr.get_dashboard_data()
+        except Exception as e:
+            return {"error": str(e), "budgets": []}
+
+    @app.get("/api/integrity")
+    async def api_integrity():
+        """Get integrity verification status."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.compliance import TamperDetector
+
+            detector = TamperDetector(repo.mem_dir)
+            return detector.verify_integrity(repo.current_dir)
+        except Exception as e:
+            return {"error": str(e), "verified": False}
+
+    # --- Archaeology API ---
+
+    @app.get("/api/archaeology")
+    async def api_archaeology():
+        """Get archaeology dashboard data."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.archaeology import get_archaeology_dashboard
+
+            return get_archaeology_dashboard(repo.root)
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/forgotten")
+    async def api_forgotten(days: int = 30, limit: int = 20):
+        """Get forgotten memories."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.archaeology import ForgottenKnowledgeFinder
+
+            finder = ForgottenKnowledgeFinder(repo.root)
+            forgotten = finder.find_forgotten(days_threshold=days, limit=limit)
+            return {"forgotten": [f.to_dict() for f in forgotten], "count": len(forgotten)}
+        except Exception as e:
+            return {"error": str(e), "forgotten": []}
+
+    # --- Confidence API ---
+
+    @app.get("/api/confidence")
+    async def api_confidence():
+        """Get confidence dashboard data."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.confidence import get_confidence_dashboard
+
+            return get_confidence_dashboard(repo.mem_dir)
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.get("/api/confidence/{path:path}")
+    async def api_confidence_score(path: str):
+        """Get confidence score for a specific memory."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.confidence import ConfidenceCalculator
+            from datetime import datetime, timezone
+
+            calculator = ConfidenceCalculator(repo.mem_dir)
+            full_path = repo.current_dir / path
+
+            created_at = None
+            if full_path.exists():
+                mtime = full_path.stat().st_mtime
+                created_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+
+            score = calculator.calculate_score(path, created_at=created_at)
+            return score.to_dict()
+        except Exception as e:
+            return {"error": str(e)}
+
+    # --- Session API ---
+
+    @app.get("/api/sessions")
+    async def api_sessions():
+        """Get current session status."""
+        from memvcs.core.repository import Repository
+
+        repo = Repository(_repo_path)
+        if not repo.is_valid_repo():
+            raise HTTPException(status_code=400, detail="Not an agmem repository")
+
+        try:
+            from memvcs.core.session import SessionManager
+
+            manager = SessionManager(repo.root)
+            return manager.get_status()
+        except Exception as e:
+            return {"error": str(e), "active": False}
+
     return app
 
 

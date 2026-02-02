@@ -1,0 +1,29 @@
+[Unit]
+Description=agmem Memory VCS Daemon
+Documentation=https://github.com/your-org/agmem
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i
+ExecStart=/usr/local/bin/agmem daemon start
+ExecStop=/usr/local/bin/agmem daemon stop
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=AGMEM_LOG_LEVEL=info
+Environment=AGMEM_REPO_PATH=/home/%i/.agmem
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/home/%i/.agmem
+
+[Install]
+WantedBy=multi-user.target

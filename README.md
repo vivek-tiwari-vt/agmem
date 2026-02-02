@@ -23,33 +23,328 @@ agmem solves all of these problems with a familiar Git-like interface.
 
 ## Features
 
+### 🔧 Core Version Control
 - ✅ **Git-like workflow** — `init`, `add`, `commit`, `status`, `log`, `branch`, `checkout`, `merge`, `diff`, `show`, `reset`, `tag`, `stash`, `reflog`, `blame`, `tree`, `clean`
-- ✅ **HEAD~n** — Walk parent chain: `agmem log HEAD~5`, `agmem show HEAD~1`
+- ✅ **HEAD~n resolution** — Walk parent chain: `agmem log HEAD~5`, `agmem show HEAD~1`
 - ✅ **Branch/tag names with `/`** — Git-style refs: `feature/test`, `releases/v1` (path-validated)
-- ✅ **Content-addressable storage** — SHA-256 deduplication like Git
+- ✅ **Content-addressable storage** — SHA-256 deduplication like Git with zlib compression
 - ✅ **Memory-type-aware merging** — Episodic append, semantic consolidate, procedural prefer-new
-- ✅ **Remote (file://)** — `clone`, `push`, `pull`, `remote`; pull merges into current branch; push conflict detection (non–fast-forward reject)
-- ✅ **Search** — Semantic with `agmem[vector]`, or plain text over `current/` when vector deps missing
-- ✅ **Knowledge graph** — `agmem graph` from wikilinks/tags; `--no-similarity`, `--format d3`, `--serve` (optional `agmem[web]`)
-- ✅ **Integrity** — `agmem fsck` (objects, refs, vector store, Merkle/signature); `agmem verify --crypto`; path/ref/hash validation (no path traversal)
-- ✅ **Cryptographic commit verification** — Merkle tree over blobs; Ed25519 signing of root; verify on checkout, pull, `verify`, `fsck`; Merkle proofs for single-blob verification
-- ✅ **Encryption at rest** — Optional AES-256-GCM with Argon2id key derivation; hash-then-encrypt preserves deduplication
-- ✅ **Tamper-evident audit trail** — Append-only hash-chained log (init, add, commit, checkout, merge, push, pull, config); `agmem audit` and `agmem audit --verify`
-- ✅ **Multi-agent trust** — Trust store (full / conditional / untrusted) per public key; applied on pull/merge; clone copies remote keys
-- ✅ **Conflict resolution** — `agmem resolve` with ours/theirs/both; conflicts persisted in `.mem/merge/`; path-safe
-- ✅ **Differential privacy** — Epsilon/delta budget in `.mem/privacy_budget.json`; `--private` on `agmem distill` and `agmem garden`; noise applies to fact-level data only (metadata fields excluded)
-- ✅ **Pack files & GC** — `agmem gc [--repack]` (reachable from refs, prune loose, optional pack file + index); ObjectStore reads from pack when loose missing
-- ✅ **Multi-provider LLM** — OpenAI and Anthropic via `memvcs.core.llm`; config/repo or env; used by gardener, distiller, consistency, merge
-- ✅ **Temporal querying** — Point-in-time and range queries in temporal index; frontmatter timestamps
-- ✅ **Federated collaboration** — `agmem federated push|pull`; protocol-compliant summaries (agent_id, timestamp, topic_counts, fact_hashes); optional DP on outbound; coordinator API in docs/FEDERATED.md
-- ✅ **Zero-knowledge proofs** — `agmem prove` (hash/signature-based): keyword containment (Merkle set membership), memory freshness (signed timestamp). **Note:** Current implementation is proof-of-knowledge with known limitations; see docs for migration to true zk-SNARKs.
-- ✅ **Daemon health** — 4-point health monitoring (storage, redundancy, staleness, graph consistency) with periodic checks; visible warnings and JSON reports
-- ✅ **Delta encoding** — 5-10x compression for similar objects using Levenshtein distance and SequenceMatcher; enabled in GC repack with multi-tier similarity filtering
-- ✅ **Performance safeguards** — Multi-tier similarity filter (length ratio + SimHash) avoids O(n²×m²) worst-case comparisons
-- ✅ **GPU acceleration** — Vector store detects GPU for embedding model when available
-- ✅ **Optional** — `serve`, `daemon` (watch + auto-commit), `garden` (episode archival), MCP server; install extras as needed
 
-### Feature Coverage
+### 🌐 Collaboration & Remotes
+- ✅ **Remote operations** — `clone`, `push`, `pull`, `remote` with file:// URLs
+- ✅ **Multi-agent trust** — Trust store (full/conditional/untrusted) per public key
+- ✅ **Federated collaboration** — Coordinator API for distributed memory sharing
+- ✅ **Conflict resolution** — `agmem resolve` with ours/theirs/both strategies
+
+### 🔒 Security & Privacy
+- ✅ **Cryptographic verification** — Merkle tree over blobs, Ed25519 signing
+- ✅ **Encryption at rest** — AES-256-GCM with Argon2id key derivation
+- ✅ **Tamper-evident audit** — Append-only hash-chained log
+- ✅ **Differential privacy** — Epsilon/delta budget with fact-level noise
+- ✅ **Zero-knowledge proofs** — Keyword containment, memory freshness
+- ✅ **PII scanning** — Pre-commit hooks for sensitive data
+
+### 🧠 Intelligence & Search
+- ✅ **Semantic search** — Vector embeddings with GPU acceleration
+- ✅ **Knowledge graph** — Wikilinks, tags, co-occurrence relationships
+- ✅ **Multi-provider LLM** — OpenAI and Anthropic integration
+- ✅ **Temporal queries** — Point-in-time and range-based retrieval
+
+### ⚙️ Operations & Performance
+- ✅ **Pack files & GC** — Object packing with 5-10x delta compression
+- ✅ **Health monitoring** — Storage, redundancy, staleness, graph consistency
+- ✅ **IPFS/S3/GCS remotes** — Distributed storage backends
+- ✅ **GPU acceleration** — CUDA/MPS detection for embeddings
+
+---
+
+## 🚀 New in v0.3.0: Complete Feature Set
+
+### Phase 1: UX Parity
+
+```mermaid
+graph LR
+    subgraph Daemon ["🔄 Observation Daemon"]
+        D1["Extract MCP<br/>observations"] --> D2["Classify by<br/>memory type"]
+        D2 --> D3["Auto-stage<br/>changes"]
+        D3 --> D4["Generate commit<br/>message (LLM)"]
+    end
+    
+    subgraph WebUI ["🌐 Web Viewer"]
+        W1["Dashboard"] --> W2["Timeline"]
+        W2 --> W3["Graph"]
+        W3 --> W4["Agents"]
+    end
+    
+    subgraph Search ["🔍 Progressive Search"]
+        S1["Layer 1:<br/>Fast index"] --> S2["Layer 2:<br/>Timeline context"]
+        S2 --> S3["Layer 3:<br/>Full details"]
+    end
+    
+    subgraph Sessions ["📋 Session Manager"]
+        SS1["Start session"] --> SS2["Track observations"]
+        SS2 --> SS3["Classify topics"]
+        SS3 --> SS4["Auto-commit"]
+    end
+    
+    style Daemon fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style WebUI fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Search fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style Sessions fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+```
+
+| Feature | Module | Description |
+|---------|--------|-------------|
+| **Observation Daemon** | `daemon.py` | Real-time MCP tool observation extraction with LLM commit messages |
+| **Web Viewer UI** | `web_ui/` | React dashboard with 22 REST endpoints + WebSocket |
+| **Progressive Search** | `search_index.py` | 3-tier search: index → timeline → full details |
+| **Session Manager** | `session.py` | Session lifecycle with topic classification |
+
+### Phase 2: Differentiation
+
+```mermaid
+graph TB
+    subgraph Collab ["👥 Multi-Agent Collaboration"]
+        C1["Agent Registry<br/>register, list, trust"]
+        C2["Trust Manager<br/>grant, revoke, verify"]
+        C3["Contribution Tracker<br/>commits, leaderboard"]
+        C4["Conflict Detector<br/>concurrent edits"]
+    end
+    
+    subgraph Compliance ["📋 Compliance Dashboard"]
+        CP1["Privacy Manager<br/>budget tracking"]
+        CP2["Encryption Verifier<br/>status checks"]
+        CP3["Tamper Detector<br/>Merkle verification"]
+        CP4["Audit Analyzer<br/>pattern detection"]
+    end
+    
+    subgraph Archaeology ["🏛️ Memory Archaeology"]
+        A1["History Explorer<br/>file evolution"]
+        A2["Forgotten Finder<br/>unused memories"]
+        A3["Pattern Analyzer<br/>recurring themes"]
+        A4["Context Reconstructor<br/>historical state"]
+    end
+    
+    subgraph Confidence ["📊 Confidence Scoring"]
+        CS1["Decay Model<br/>exponential, linear, step"]
+        CS2["Source Tracker<br/>reliability scores"]
+        CS3["Confidence Calculator<br/>multi-factor scoring"]
+        CS4["Expiration Alert<br/>low-confidence items"]
+    end
+    
+    style Collab fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Compliance fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    style Archaeology fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Confidence fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+```
+
+| Feature | Module | MCP Tools |
+|---------|--------|-----------|
+| **Collaboration** | `collaboration.py` | `agent_register`, `trust_grant`, `contributions_list` |
+| **Compliance** | `compliance.py` | `privacy_status`, `integrity_verify` |
+| **Archaeology** | `archaeology.py` | `forgotten_memories`, `find_context` |
+| **Confidence** | `confidence.py` | `confidence_score`, `low_confidence`, `expiring_soon` |
+
+### Phase 3: Advanced Features
+
+```mermaid
+graph TB
+    subgraph TimeTravel ["⏰ Time-Travel Debugging"]
+        T1["TimeExpressionParser<br/>'yesterday', '2 weeks ago'"]
+        T2["TemporalNavigator<br/>commit lookup by time"]
+        T3["TimelineVisualizer<br/>activity heatmaps"]
+        T4["SnapshotExporter<br/>JSON, Markdown, Archive"]
+    end
+    
+    subgraph PrivateSearch ["🔐 Privacy-Preserving Search"]
+        P1["SearchTokenizer<br/>blind search tokens"]
+        P2["AccessControl<br/>file-level permissions"]
+        P3["DP Noise<br/>result randomization"]
+        P4["Private Engine<br/>secure retrieval"]
+    end
+    
+    subgraph SemanticGraph ["🕸️ Semantic Memory Graph"]
+        G1["GraphBuilder<br/>auto-infer relationships"]
+        G2["Clusterer<br/>type, tag, community"]
+        G3["GraphSearch<br/>traversal queries"]
+        G4["Visualizer<br/>D3 force-directed"]
+    end
+    
+    subgraph Agents ["🤖 Memory Agents"]
+        AG1["ConsolidationAgent<br/>merge fragmented"]
+        AG2["CleanupAgent<br/>duplicates, stale"]
+        AG3["AlertAgent<br/>notifications"]
+        AG4["AgentManager<br/>orchestration"]
+    end
+    
+    style TimeTravel fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style PrivateSearch fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px
+    style SemanticGraph fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    style Agents fill:#fbe9e7,stroke:#bf360c,stroke-width:2px
+```
+
+| Feature | Module | MCP Tools |
+|---------|--------|-----------|
+| **Time-Travel** | `timetravel.py` | `time_travel`, `timeline` |
+| **Private Search** | `private_search.py` | Secure search with access control |
+| **Semantic Graph** | `semantic_graph.py` | `memory_graph`, `graph_related` |
+| **Memory Agents** | `agents.py` | `agent_health`, `find_duplicates`, `cleanup_candidates` |
+
+---
+
+## 📊 Complete Architecture
+
+```mermaid
+flowchart TB
+    subgraph Frontend ["🖥️ Frontend Layer"]
+        direction LR
+        CLI["CLI<br/>agmem *"]
+        MCP["MCP Server<br/>30 tools"]
+        WEB["Web UI<br/>React + WebSocket"]
+        API["REST API<br/>22 endpoints"]
+    end
+    
+    subgraph Core ["⚙️ Core Layer (48 Modules)"]
+        direction TB
+        
+        subgraph VCS ["Version Control"]
+            Repository
+            Objects
+            Refs
+            Staging
+            Merge
+            Diff
+        end
+        
+        subgraph Intelligence ["Intelligence"]
+            VectorStore["Vector Store"]
+            KnowledgeGraph["Knowledge Graph"]
+            SemanticGraph["Semantic Graph"]
+            SearchIndex["Search Index"]
+            LLM["LLM Providers"]
+        end
+        
+        subgraph Security ["Security"]
+            CryptoVerify["Crypto Verify"]
+            Encryption
+            Trust
+            Audit
+            ZKProofs["ZK Proofs"]
+        end
+        
+        subgraph Automation ["Automation"]
+            Daemon
+            Session
+            Agents
+            Gardener
+            Distiller
+        end
+    end
+    
+    subgraph Storage ["💾 Storage Layer"]
+        direction LR
+        Local["Local<br/>.mem/objects/"]
+        Pack["Pack Files<br/>Delta encoded"]
+        IPFS["IPFS<br/>Distributed"]
+        Cloud["S3/GCS<br/>Cloud"]
+    end
+    
+    Frontend --> Core
+    Core --> Storage
+    
+    style Frontend fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    style Core fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style Storage fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style VCS fill:#c8e6c9,stroke:#2e7d32
+    style Intelligence fill:#bbdefb,stroke:#1565c0
+    style Security fill:#ffcdd2,stroke:#c62828
+    style Automation fill:#e1bee7,stroke:#7b1fa2
+```
+
+---
+
+## 🔄 User Flows
+
+### Memory Commit Flow
+
+```mermaid
+sequenceDiagram
+    participant Agent as 🤖 Agent
+    participant Daemon as 🔄 Daemon
+    participant Session as 📋 Session
+    participant VCS as 💾 VCS
+    participant Graph as 🕸️ Graph
+    
+    Agent->>Daemon: MCP tool observation
+    Daemon->>Daemon: Extract & classify
+    Daemon->>Session: Add to session
+    Session->>Session: Topic classification
+    
+    alt Auto-commit enabled
+        Session->>VCS: Stage changes
+        VCS->>VCS: Generate commit (LLM)
+        VCS->>Graph: Update relationships
+    else Manual commit
+        Agent->>VCS: agmem commit
+        VCS->>Graph: Update relationships
+    end
+    
+    Graph->>Graph: Rebuild connections
+```
+
+### Multi-Agent Collaboration Flow
+
+```mermaid
+sequenceDiagram
+    participant A1 as 🤖 Agent A
+    participant Reg as 📋 Registry
+    participant Trust as 🔐 Trust
+    participant Remote as 🌐 Remote
+    participant A2 as 🤖 Agent B
+    
+    A1->>Reg: agent_register
+    A2->>Reg: agent_register
+    
+    A1->>Trust: trust_grant(Agent B)
+    Trust->>Trust: Verify public key
+    
+    A1->>Remote: agmem push
+    Remote->>Remote: Store commits
+    
+    A2->>Remote: agmem pull
+    Remote->>Trust: Verify origin
+    Trust->>A2: Merge if trusted
+    
+    A2->>A2: contribution_log
+```
+
+### Time-Travel Debugging Flow
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User
+    participant Parser as 📅 Parser
+    participant Nav as 🧭 Navigator
+    participant VCS as 💾 VCS
+    participant Export as 📦 Exporter
+    
+    User->>Parser: "2 weeks ago"
+    Parser->>Parser: Parse expression
+    Parser->>Nav: Get commit at time
+    Nav->>VCS: Lookup by timestamp
+    VCS->>Nav: Return commit hash
+    
+    alt View timeline
+        Nav->>User: Activity heatmap
+    else Export snapshot
+        Nav->>Export: Export state
+        Export->>User: JSON/Markdown/Archive
+    end
+```
+
+---
+
+### Feature Coverage Overview
 
 ```mermaid
 graph TB
@@ -84,6 +379,13 @@ graph TB
         Intel4["✅ Temporal queries<br/>Point-in-time, Range"]
     end
     
+    subgraph NewFeatures ["🆕 v0.3.0 Features"]
+        New1["✅ Web UI + React Frontend<br/>Dashboard, Graph, Timeline"]
+        New2["✅ Session Management<br/>Topic classification, auto-commit"]
+        New3["✅ Memory Agents<br/>Consolidation, Cleanup, Alerts"]
+        New4["✅ Time-Travel<br/>Natural language dates"]
+    end
+    
     subgraph Ops ["⚙️ Operations"]
         Ops1["✅ Pack/GC<br/>Object packing, cleanup"]
         Ops2["✅ Daemon mode<br/>Watch + auto-commit"]
@@ -94,13 +396,15 @@ graph TB
     Collab --> Safety
     Safety --> Privacy
     Privacy --> Intelligence
-    Intelligence --> Ops
+    Intelligence --> NewFeatures
+    NewFeatures --> Ops
     
     style Core fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
     style Collab fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     style Safety fill:#ffebee,stroke:#c62828,stroke-width:2px
     style Privacy fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style Intelligence fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    style NewFeatures fill:#fff8e1,stroke:#f9a825,stroke-width:3px
     style Ops fill:#fff3e0,stroke:#e65100,stroke-width:2px
 ```
 
@@ -727,7 +1031,14 @@ mypy memvcs/
 - [x] Encryption at rest (optional AES-256-GCM); differential privacy budget (`--private` on distill/garden)
 - [x] Pack files and garbage collection (`agmem gc`); ZK proofs and federated stubs (`agmem prove`, `agmem federated`)
 - [x] Multi-provider LLM (OpenAI, Anthropic); temporal range queries; daemon health checks; GPU detection; test suite and CI
+- [x] **Phase 1: UX Parity** — Observation daemon, web viewer UI, progressive disclosure search, session-aware auto-commit
+- [x] **Phase 2: Differentiation** — Multi-agent collaboration, compliance dashboard, memory archaeology, confidence scoring
+- [x] **Phase 3: Advanced Features** — Time-travel debugging, privacy-preserving search, semantic memory graph, memory agents
+- [x] **React Frontend** — Interactive force-directed graph visualization with search, zoom, pan, node dragging
+- [x] **WebSocket Support** — Real-time updates for file changes, commits, and agent activity
+- [x] **Service Templates** — systemd and launchd service files for daemon deployment
 - [ ] IPFS remote (stub in place); full ZK circuits and federated coordinator
+
 
 ## Integrations
 

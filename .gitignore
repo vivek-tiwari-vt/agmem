@@ -67,3 +67,4 @@ ehthumbs.db
 # IDE settings (local overrides)
 .vscode/settings.json
 .idea/inspectionProfiles/
+docs/

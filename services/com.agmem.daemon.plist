@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.agmem.daemon</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/python3</string>
+        <string>-m</string>
+        <string>memvcs.core.daemon</string>
+        <string>--watch</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/YOUR_USERNAME</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>AGMEM_LOG_LEVEL</key>
+        <string>info</string>
+        <key>AGMEM_REPO_PATH</key>
+        <string>/Users/YOUR_USERNAME/.agmem</string>
+    </dict>
+    
+    <key>StandardOutPath</key>
+    <string>/usr/local/var/log/agmem/daemon.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/agmem/daemon-error.log</string>
+    
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+</dict>
+</plist>

@@ -5,6 +5,114 @@ All notable changes to the agmem project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-02
+
+### Added - Phase 3: Advanced Features
+- **Time-Travel Debugging** (`memvcs.core.timetravel`)
+  - `TimeExpressionParser`: Natural language date parsing ("yesterday", "2 weeks ago", date ranges)
+  - `TemporalNavigator`: Navigate commits by time expressions
+  - `TimelineVisualizer`: Activity graphs (by day, hour, weekday)
+  - `SnapshotExporter`: Export memory snapshots (JSON, Markdown, Archive)
+  - MCP tools: `time_travel`, `timeline`
+
+- **Privacy-Preserving Search** (`memvcs.core.private_search`)
+  - `SearchTokenizer`: Hash-based blind search tokens
+  - `AccessControl`: File-level read/write permissions
+  - `DifferentialPrivacyNoise`: Result randomization with epsilon/delta
+  - `PrivateSearchEngine`: Secure search with access control
+
+- **Semantic Memory Graph** (`memvcs.core.semantic_graph`)
+  - `SemanticGraphBuilder`: Auto-infer relationships from tags, links, co-occurrence
+  - `SemanticClusterer`: Cluster by type, tag, or communities (Louvain)
+  - `GraphSearchEngine`: Traversal-based search with depth limits
+  - MCP tools: `memory_graph`, `graph_related`
+
+- **Memory Agents & Automation** (`memvcs.core.agents`)
+  - `ConsolidationAgent`: Find fragmented memories for merging
+  - `CleanupAgent`: Identify duplicates, stale files, archive candidates
+  - `AlertAgent`: Configurable monitoring and notifications
+  - `MemoryAgentManager`: Agent orchestration with health checks
+  - MCP tools: `agent_health`, `find_duplicates`, `cleanup_candidates`, `consolidation_candidates`
+
+### Added - Phase 2: Differentiation Features
+- **Multi-Agent Collaboration** (`memvcs.core.collaboration`)
+  - `AgentRegistry`: Register and manage agents with metadata
+  - `TrustManager`: Grant/revoke trust between agents
+  - `ContributionTracker`: Track commit contributions and leaderboard
+  - `ConflictDetector`: Detect concurrent edits
+  - MCP tools: `agent_register`, `trust_grant`, `contributions_list`
+
+- **Compliance Dashboard** (`memvcs.core.compliance`)
+  - `PrivacyManager`: Differential privacy budget tracking
+  - `EncryptionVerifier`: Verify file encryption status
+  - `TamperDetector`: Merkle tree integrity verification
+  - `AuditAnalyzer`: Analyze audit log patterns
+  - MCP tools: `privacy_status`, `integrity_verify`
+
+- **Memory Archaeology** (`memvcs.core.archaeology`)
+  - `HistoryExplorer`: Analyze file evolution over time
+  - `ForgottenKnowledgeFinder`: Find unused/stale memories
+  - `PatternAnalyzer`: Detect recurring patterns
+  - `ContextReconstructor`: Rebuild historical context
+  - MCP tools: `forgotten_memories`, `find_context`
+
+- **Confidence Scoring** (`memvcs.core.confidence`)
+  - `DecayModel`: Temporal decay functions (exponential, linear, step)
+  - `SourceTracker`: Track source reliability
+  - `ConfidenceCalculator`: Multi-factor confidence scoring
+  - MCP tools: `confidence_score`, `low_confidence`, `expiring_soon`
+
+### Added - Phase 1: UX Parity Features
+- **Real-Time Observation Daemon** (`memvcs.core.daemon`)
+  - `ObservationExtractor`: Extract and classify MCP tool observations
+  - `AutoStagingEngine`: Auto-stage observations by memory type
+  - `CommitMessageGenerator`: LLM-powered commit messages
+  - `ObservationDaemon`: Background daemon with auto-commit
+
+- **Web Viewer UI** (`memvcs.integrations.web_ui`)
+  - FastAPI server with 22 REST endpoints
+  - WebSocket support for real-time updates (`websocket.py`)
+  - React frontend with Vite (`frontend/`)
+  - Interactive force-directed graph visualization
+  - Dashboard, Timeline, Graph, and Agents pages
+
+- **Progressive Disclosure Search** (`memvcs.core.search_index`)
+  - SQLite FTS5 index for full-text search
+  - Layer 1: Lightweight index search
+  - Layer 2: Timeline context queries
+  - Layer 3: Full details batch retrieval
+  - MCP tools: `memory_index`, `memory_timeline`, `memory_details`
+
+- **Session-Aware Auto-Commit** (`memvcs.core.session`)
+  - `Session` and `Observation` dataclasses
+  - `TopicClassifier`: Automatic topic grouping
+  - `SessionManager`: Session lifecycle management
+  - MCP tools: `session_start`, `session_status`, `session_commit`, `session_end`
+
+### Added - Infrastructure
+- **Service Templates** (`services/`)
+  - `agmem-daemon@.service`: systemd unit with security hardening
+  - `com.agmem.daemon.plist`: macOS launchd plist
+  - Installation guide for both platforms
+
+- **React Frontend** (`frontend/`)
+  - Interactive force-directed memory graph (react-force-graph-2d)
+  - Search and filter nodes
+  - Node selection with connection highlighting
+  - Zoom, pan, and drag interactions
+  - Color-coded memory types
+  - Animated edge particles
+
+### Changed
+- Expanded MCP server from 5 to 30 tools
+- Web API expanded from 7 to 22 endpoints
+- Test suite expanded to 370 tests
+
+### Performance
+- **370 tests passing** (5 skipped)
+- All 12 core modules import successfully
+- TypeScript frontend compiles without errors
+
 ## [0.2.1] - 2026-02-01
 
 ### Added
