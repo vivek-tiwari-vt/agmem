@@ -9,7 +9,10 @@ This can achieve 5-10x compression improvement for highly similar content
 """
 
 import hashlib
+from collections import defaultdict
 from typing import List, Tuple, Dict, Optional
+
+from memvcs.core.fast_similarity import FastSimilarityMatcher
 
 
 def levenshtein_distance(s1: bytes, s2: bytes) -> int:
@@ -75,34 +78,53 @@ def find_similar_objects(
     """
     candidates = {h: content for h, content in objects.items() if len(content) >= min_size}
 
-    if not candidates:
+    if len(candidates) < 2:
         return []
 
-    grouped = {}
-    used = set()
+    use_parallel = len(candidates) > 10
+    max_len = max(len(content) for content in candidates.values())
+    simhash_threshold = 64 if max_len < 256 else 15
+    matcher = FastSimilarityMatcher(
+        length_ratio_threshold=0.5,
+        simhash_threshold=simhash_threshold,
+        min_similarity=similarity_threshold,
+        use_parallel=use_parallel,
+        max_workers=None,
+    )
 
-    for hash_id, content in candidates.items():
-        if hash_id in used:
+    similar_pairs = matcher.find_similar_pairs(candidates)
+    if not similar_pairs:
+        return []
+
+    graph: Dict[str, set] = defaultdict(set)
+    for id1, id2, _score in similar_pairs:
+        graph[id1].add(id2)
+        graph[id2].add(id1)
+
+    groups: List[List[str]] = []
+    visited = set()
+
+    for node in graph:
+        if node in visited:
             continue
+        stack = [node]
+        component = []
+        visited.add(node)
 
-        group = [hash_id]
-        used.add(hash_id)
+        while stack:
+            current = stack.pop()
+            component.append(current)
+            for neighbor in graph[current]:
+                if neighbor in visited:
+                    continue
+                visited.add(neighbor)
+                stack.append(neighbor)
 
-        for other_id, other_content in candidates.items():
-            if other_id in used:
-                continue
+        if len(component) > 1:
+            component.sort(key=lambda h: len(candidates[h]))
+            groups.append(component)
 
-            similarity = content_similarity(content, other_content)
-            if similarity >= similarity_threshold:
-                group.append(other_id)
-                used.add(other_id)
-
-        if len(group) > 1:
-            # Sort by size ascending (smallest first = best base)
-            group.sort(key=lambda h: len(candidates[h]))
-            grouped[group[0]] = group
-
-    return list(grouped.values())
+    return groups
 
 
 def compute_delta(base: bytes, target: bytes) -> bytes:
