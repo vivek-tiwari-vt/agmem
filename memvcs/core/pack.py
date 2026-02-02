@@ -440,7 +440,7 @@ def run_repack(
         return (0, 0)
     if dry_run:
         return (len(hash_to_type), 0)
-    write_pack(objects_dir, store, hash_to_type)
+    write_pack_with_delta(objects_dir, store, hash_to_type)
     freed = 0
     for hash_id, obj_type in hash_to_type.items():
         p = store.objects_dir / obj_type / hash_id[:2] / hash_id[2:]

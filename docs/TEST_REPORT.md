@@ -82,7 +82,7 @@ This report is based on full-flow tests (`scripts/test_full_flow.py`), manual co
 |------|--------|------|
 | **Crypto** | ✅ Tests | Merkle build/verify, tampered blob fails verification, signature present but no public key. |
 | **Encryption** | ✅ Tests | Round-trip, wrong key fails, corrupted ciphertext fails. |
-| **Privacy budget** | ✅ Tests | load_budget, spend_epsilon, add_noise, Gardener/Distiller DP integration (mocked). |
+| **Privacy budget** | ✅ Tests | load_budget, spend_epsilon, add_noise, Gardener/Distiller DP integration (mocked), Distiller DP sampling (no fixed seed, noisy count). |
 | **Pack/GC** | ✅ Tests | list_loose_objects, run_gc, write_pack, retrieve_from_pack, ObjectStore read from pack, run_repack dry-run. |
 | **ZK proofs** | ✅ Tests | prove_keyword_containment / verify_proof round-trip; keyword not in file returns False; freshness (skipped without signing key). |
 | **Federated** | ✅ Tests | produce_local_summary (topic_hashes, fact_count), DP noising; push/pull with mock coordinator. |

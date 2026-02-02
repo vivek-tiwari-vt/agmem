@@ -211,7 +211,6 @@ class Distiller:
         # Sample facts with noise - prevents any single episode from dominating
         import random
 
-        random.seed(42)  # Deterministic but different per cluster due to content
         sampled = random.sample(facts, min(noisy_count, len(facts)))
 
         # Optional: Add slight noise to fact embeddings if vector store available
@@ -233,17 +232,9 @@ class Distiller:
             out_path = self.target_dir / f"consolidated-{ts}.md"
 
         confidence_score = self.config.extraction_confidence_threshold
-        if (
-            self.config.use_dp
-            and self.config.dp_epsilon is not None
-            and self.config.dp_delta is not None
-        ):
-            from .privacy_budget import add_noise
-
-            confidence_score = add_noise(
-                confidence_score, 0.1, self.config.dp_epsilon, self.config.dp_delta
-            )
-            confidence_score = max(0.0, min(1.0, confidence_score))
+        # Metadata noise removed: confidence_score is a metadata field (threshold setting),
+        # not an individual fact. Adding noise to metadata doesn't provide meaningful
+        # privacy guarantees. See privacy_validator.py for the distinction.
         frontmatter = {
             "schema_version": "1.0",
             "last_updated": datetime.utcnow().isoformat() + "Z",

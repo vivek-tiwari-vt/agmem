@@ -354,28 +354,11 @@ class Gardener:
         except ValueError:
             insight_path = self.semantic_dir / f"insight-{timestamp}.md"
 
-        # Generate frontmatter (optionally noised for differential privacy)
+        # Generate frontmatter
         source_episodes = len(cluster.episodes)
-        if (
-            self.config.use_dp
-            and self.config.dp_epsilon is not None
-            and self.config.dp_delta is not None
-        ):
-            from .privacy_budget import add_noise
-
-            source_episodes = max(
-                0,
-                int(
-                    round(
-                        add_noise(
-                            float(source_episodes),
-                            1.0,
-                            self.config.dp_epsilon,
-                            self.config.dp_delta,
-                        )
-                    )
-                ),
-            )
+        # Metadata noise removed: source_episodes is a metadata count (number of episodes
+        # contributing to this insight), not an individual fact. Adding noise to metadata
+        # doesn't provide meaningful privacy guarantees. See privacy_validator.py.
         frontmatter = {
             "schema_version": "1.0",
             "last_updated": datetime.utcnow().isoformat() + "Z",
@@ -514,53 +497,10 @@ class Gardener:
         clusters_found = len(clusters)
         insights_generated = insights_written
         episodes_archived = archived_count
-        if (
-            self.config.use_dp
-            and self.config.dp_epsilon is not None
-            and self.config.dp_delta is not None
-        ):
-            from .privacy_budget import add_noise
-
-            sensitivity = 1.0
-            clusters_found = max(
-                0,
-                int(
-                    round(
-                        add_noise(
-                            float(clusters_found),
-                            sensitivity,
-                            self.config.dp_epsilon,
-                            self.config.dp_delta,
-                        )
-                    )
-                ),
-            )
-            insights_generated = max(
-                0,
-                int(
-                    round(
-                        add_noise(
-                            float(insights_generated),
-                            sensitivity,
-                            self.config.dp_epsilon,
-                            self.config.dp_delta,
-                        )
-                    )
-                ),
-            )
-            episodes_archived = max(
-                0,
-                int(
-                    round(
-                        add_noise(
-                            float(episodes_archived),
-                            sensitivity,
-                            self.config.dp_epsilon,
-                            self.config.dp_delta,
-                        )
-                    )
-                ),
-            )
+        # Metadata noise removed: clusters_found, insights_generated, and
+        # episodes_archived are metadata counts, not individual facts.
+        # Adding noise to these doesn't provide meaningful privacy guarantees.
+        # See privacy_validator.py for the distinction between metadata and facts.
 
         return GardenerResult(
             success=True,

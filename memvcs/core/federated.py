@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from .config_loader import load_agmem_config
+from .protocol_builder import ClientSummaryBuilder
 
 
 def get_federated_config(repo_root: Path) -> Optional[Dict[str, Any]]:
@@ -120,17 +121,27 @@ def produce_local_summary(
 
 
 def push_updates(repo_root: Path, summary: Dict[str, Any]) -> str:
-    """Send local summary to coordinator. Returns status message."""
+    """Send local summary to coordinator using protocol-compliant schema.
+
+    Uses ClientSummaryBuilder to ensure the summary conforms to the
+    server's PushRequest schema before transmission.
+
+    Returns status message."""
     cfg = get_federated_config(repo_root)
     if not cfg:
         return "Federated collaboration not configured"
     url = cfg["coordinator_url"] + "/push"
     try:
+        from .protocol_builder import ClientSummaryBuilder
+
+        # Build protocol-compliant summary
+        compliant_summary = ClientSummaryBuilder.build(repo_root, summary, strict_mode=False)
+
         import urllib.request
 
         req = urllib.request.Request(
             url,
-            data=json.dumps(summary).encode(),
+            data=json.dumps(compliant_summary).encode(),
             headers={"Content-Type": "application/json"},
             method="POST",
         )

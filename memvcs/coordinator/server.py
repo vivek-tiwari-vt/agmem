@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 import json
 import hashlib
+import re
 
 try:
     from fastapi import FastAPI, HTTPException, Request
@@ -39,10 +40,25 @@ except ImportError:
         return None
 
 
+def _get_version() -> str:
+    """Get agmem version from pyproject.toml. Falls back to 0.2.0 if not found."""
+    try:
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        if pyproject_path.exists():
+            content = pyproject_path.read_text()
+            match = re.search(r'version\s*=\s*"([^"]+)"', content)
+            if match:
+                return match.group(1)
+    except Exception:
+        pass
+    return "0.2.0"
+
+
 # Storage: In-memory for simplicity (use Redis/PostgreSQL for production)
 summaries_store: Dict[str, List[Dict[str, Any]]] = {}
+_version = _get_version()
 metadata_store: Dict[str, Any] = {
-    "coordinator_version": "0.1.6",
+    "coordinator_version": _version,
     "started_at": datetime.now(timezone.utc).isoformat(),
     "total_pushes": 0,
     "total_agents": 0,
@@ -79,7 +95,7 @@ if FASTAPI_AVAILABLE:
     app = FastAPI(
         title="agmem Federated Coordinator",
         description="Minimal coordinator for federated agent memory collaboration",
-        version="0.1.6",
+        version=_version,
     )
 
     @app.get("/")
