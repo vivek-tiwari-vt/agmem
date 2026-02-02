@@ -23,7 +23,7 @@ In `.mem/config.json` or user config:
 
 - `coordinator_url`: Base URL of the coordinator (no trailing slash).
 - `memory_types`: Which memory dirs to include in the summary.
-- `differential_privacy.enabled`: If true, numeric fields in the summary are noised before push.
+- `differential_privacy.enabled`: If true, fact-level numeric fields are noised before push (metadata is exempt).
 
 ## Coordinator API
 
@@ -33,15 +33,22 @@ The coordinator must expose two endpoints.
 
 **Request**
 
-- Body: JSON object (local summary from `produce_local_summary`).
+- Body: JSON object (protocol-compliant summary envelope).
 - `Content-Type: application/json`.
 
 **Summary shape**
 
+Top-level envelope:
+
+- `summary`: object containing the fields below.
+
+Summary fields:
+
+- `agent_id`: deterministic client identifier (SHA-256).
+- `timestamp`: ISO-8601 UTC timestamp.
 - `memory_types`: list of strings (e.g. `["episodic", "semantic"]`).
-- `topics`: dict of memory type → integer count (file count per type; may be noised if DP enabled).
-- `topic_hashes`: dict of memory type → list of topic labels (no raw content).
-- `fact_count`: integer (total fact/file count; may be noised if DP enabled).
+- `topic_counts`: dict of memory type → integer count (may be noised if DP enabled).
+- `fact_hashes`: list of strings (hashes; no raw content).
 
 **Response**
 

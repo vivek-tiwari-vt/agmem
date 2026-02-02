@@ -37,14 +37,15 @@ agmem solves all of these problems with a familiar Git-like interface.
 - ✅ **Tamper-evident audit trail** — Append-only hash-chained log (init, add, commit, checkout, merge, push, pull, config); `agmem audit` and `agmem audit --verify`
 - ✅ **Multi-agent trust** — Trust store (full / conditional / untrusted) per public key; applied on pull/merge; clone copies remote keys
 - ✅ **Conflict resolution** — `agmem resolve` with ours/theirs/both; conflicts persisted in `.mem/merge/`; path-safe
-- ✅ **Differential privacy** — Epsilon/delta budget in `.mem/privacy_budget.json`; `--private` on `agmem distill` and `agmem garden`; noise applied to counts and frontmatter
+- ✅ **Differential privacy** — Epsilon/delta budget in `.mem/privacy_budget.json`; `--private` on `agmem distill` and `agmem garden`; noise applies to fact-level data only (metadata fields excluded)
 - ✅ **Pack files & GC** — `agmem gc [--repack]` (reachable from refs, prune loose, optional pack file + index); ObjectStore reads from pack when loose missing
 - ✅ **Multi-provider LLM** — OpenAI and Anthropic via `memvcs.core.llm`; config/repo or env; used by gardener, distiller, consistency, merge
 - ✅ **Temporal querying** — Point-in-time and range queries in temporal index; frontmatter timestamps
-- ✅ **Federated collaboration** — `agmem federated push|pull`; real summaries (topic counts, fact hashes); optional DP on outbound; coordinator API in docs/FEDERATED.md
+- ✅ **Federated collaboration** — `agmem federated push|pull`; protocol-compliant summaries (agent_id, timestamp, topic_counts, fact_hashes); optional DP on outbound; coordinator API in docs/FEDERATED.md
 - ✅ **Zero-knowledge proofs** — `agmem prove` (hash/signature-based): keyword containment (Merkle set membership), memory freshness (signed timestamp). **Note:** Current implementation is proof-of-knowledge with known limitations; see docs for migration to true zk-SNARKs.
 - ✅ **Daemon health** — 4-point health monitoring (storage, redundancy, staleness, graph consistency) with periodic checks; visible warnings and JSON reports
-- ✅ **Delta encoding** — 5-10x compression for similar objects using Levenshtein distance and SequenceMatcher; optional feature in pack files
+- ✅ **Delta encoding** — 5-10x compression for similar objects using Levenshtein distance and SequenceMatcher; enabled in GC repack with multi-tier similarity filtering
+- ✅ **Performance safeguards** — Multi-tier similarity filter (length ratio + SimHash) avoids O(n²×m²) worst-case comparisons
 - ✅ **GPU acceleration** — Vector store detects GPU for embedding model when available
 - ✅ **Optional** — `serve`, `daemon` (watch + auto-commit), `garden` (episode archival), MCP server; install extras as needed
 

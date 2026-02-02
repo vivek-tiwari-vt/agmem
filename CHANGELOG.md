@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-02-01
 
 ### Added
+- **Client protocol builder** for federated summaries
+  - Generates deterministic `agent_id` and ISO-8601 `timestamp`
+  - Normalizes `topic_counts` and `fact_hashes` for server schema validation
+- **Privacy validation utilities** to distinguish fact fields from metadata
+  - Metadata fields explicitly exempted from noise
+- **Fast similarity matcher** for delta encoding prefilter
+  - Multi-tier filtering (length ratio + SimHash) before Levenshtein
+- **Compression metrics** for delta effectiveness tracking
+- **Expanded test suites** for protocol validation, workflows, and performance
 - **Comprehensive test infrastructure** (88 tests total, 100% pass rate)
   - Pack operations tests (6 tests): binary search, GC, packing
   - IPFS integration tests (7 tests): push/pull, routing, fallback
@@ -81,6 +90,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distiller now compresses by default (can be disabled with `--no-compress`)
 
 ### Fixed
+- Federated push protocol mismatches (client now matches coordinator schema)
+- Differential privacy metadata noise removed (confidence_score, source_episodes)
+- Delta encoding activated in GC repack (`write_pack_with_delta`)
+- Similarity bottleneck avoided with multi-tier prefilter
 - Differential privacy applied at correct level (facts, not metadata)
 - Pack file retrieval performance for large repositories
 - Health monitoring provides actionable warnings

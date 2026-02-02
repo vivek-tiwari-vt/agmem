@@ -1,6 +1,8 @@
 # agmem Test Report — What Works and What Doesn’t
 
-This report is based on full-flow tests (`scripts/test_full_flow.py`), manual command runs, security fixes, and the knowledge graph feature.
+This report is based on full-flow tests (`scripts/test_full_flow.py`), automated pytest runs, manual command runs, security fixes, and the knowledge graph feature.
+
+**Latest automated run (2026-02-01):** 246 passed, 5 skipped in ~45s.
 
 ---
 
@@ -82,11 +84,13 @@ This report is based on full-flow tests (`scripts/test_full_flow.py`), manual co
 |------|--------|------|
 | **Crypto** | ✅ Tests | Merkle build/verify, tampered blob fails verification, signature present but no public key. |
 | **Encryption** | ✅ Tests | Round-trip, wrong key fails, corrupted ciphertext fails. |
-| **Privacy budget** | ✅ Tests | load_budget, spend_epsilon, add_noise, Gardener/Distiller DP integration (mocked), Distiller DP sampling (no fixed seed, noisy count). |
+| **Privacy budget** | ✅ Tests | load_budget, spend_epsilon, add_noise, Gardener/Distiller DP integration (mocked), DP sampling (no fixed seed), metadata fields exempted from noise. |
 | **Pack/GC** | ✅ Tests | list_loose_objects, run_gc, write_pack, retrieve_from_pack, ObjectStore read from pack, run_repack dry-run. |
 | **ZK proofs** | ✅ Tests | prove_keyword_containment / verify_proof round-trip; keyword not in file returns False; freshness (skipped without signing key). |
-| **Federated** | ✅ Tests | produce_local_summary (topic_hashes, fact_count), DP noising; push/pull with mock coordinator. |
+| **Federated** | ✅ Tests | protocol-compliant summary (agent_id, timestamp, topic_counts, fact_hashes), DP noising; push/pull with mock coordinator. |
 | **IPFS** | ✅ Tests | parse_ipfs_url, bundle/unbundle round-trip; push/pull with mock gateway. |
+| **Protocol & privacy** | ✅ Tests | schema validation, privacy audit (metadata noise rejection), strict mode enforcement. |
+| **Performance** | ✅ Tests | Levenshtein, SimHash, multi-tier similarity filtering regression checks. |
 
 ### Security (vulnerability check)
 
